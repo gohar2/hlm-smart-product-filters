@@ -1,7 +1,7 @@
 # HLM Product Filters - Low-Level Development Plan
 
 ## 0) Purpose and scope
-This document defines a complete, low-level development plan for an advanced, smart WooCommerce product filter plugin built from scratch. It is independent from any existing plugin architecture. The plan includes requirements, architecture, data flow, admin configuration, frontend UI, query processing, AJAX transport, caching, extensibility, security, testing, and deliverables. The initial release must support filtering by Color (variation attribute), Breeds, Category, Size, Gender, and Tags, while being extensible for future attributes and filter types.
+This document defines a complete, low-level development plan for an advanced, smart WooCommerce product filter plugin built from scratch. It is independent from any existing plugin architecture. The plan includes requirements, architecture, data flow, admin configuration, frontend UI, query processing, AJAX transport, caching, extensibility, security, testing, and deliverables. The initial release must support filtering by Color (variation attribute), Breeds, Category, Size, Gender, and Tags, while being extensible for future attributes and filter types. Using jQuery instead of JS
 
 ## 1) Product requirements (complete feature set)
 - Dynamic filter builder with unlimited filters
