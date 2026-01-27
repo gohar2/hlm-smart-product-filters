@@ -80,21 +80,34 @@
 
   function updateSourceFromPicker($row) {
     var value = $row.find('.hlm-source-picker').val() || '';
+    var $customField = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
+    var $customInput = $row.find('[name*="[custom_source]"]');
+    var $dataSource = $row.find('.hlm-data-source');
+    var $sourceKey = $row.find('.hlm-source-key');
     if (!value) {
+      $customField.addClass('is-hidden');
       return;
     }
-    var $dataSource = $row.find('[name*="[data_source]"]');
-    var $sourceKey = $row.find('[name*="[source_key]"]');
     if (value === 'product_cat' || value === 'product_tag') {
       $dataSource.val(value);
       $sourceKey.val(value);
+      $customField.addClass('is-hidden');
     } else {
-      $dataSource.val('attribute');
-      $sourceKey.val(value);
+      if (value === 'custom') {
+        $dataSource.val('taxonomy');
+        $customField.removeClass('is-hidden');
+        if ($customInput.val()) {
+          $sourceKey.val($customInput.val());
+        }
+      } else {
+        $dataSource.val('attribute');
+        $sourceKey.val(value);
+        $customField.addClass('is-hidden');
+      }
     }
 
     var keyInput = $row.find('[name*="[key]"]');
-    if (!keyInput.val()) {
+    if (!keyInput.val() && value !== 'custom') {
       keyInput.val(normalizeKey(value));
     }
     applyAutoValues($row);
@@ -103,21 +116,32 @@
   }
 
   function updateSourcePickerFromFields($row) {
-    var dataSource = $row.find('[name*="[data_source]"]').val();
-    var sourceKey = $row.find('[name*="[source_key]"]').val();
+    var dataSource = $row.find('.hlm-data-source').val();
+    var sourceKey = $row.find('.hlm-source-key').val();
     var $picker = $row.find('.hlm-source-picker');
+    var $customField = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
+    var $customInput = $row.find('[name*="[custom_source]"]');
     if (!$picker.length) {
       return;
     }
     if (dataSource === 'product_cat' || dataSource === 'product_tag') {
       $picker.val(dataSource);
+      $customField.addClass('is-hidden');
       return;
     }
     if (dataSource === 'attribute' && sourceKey) {
       $picker.val(sourceKey);
+      $customField.addClass('is-hidden');
+      return;
+    }
+    if (dataSource === 'taxonomy' && sourceKey) {
+      $picker.val('custom');
+      $customInput.val(sourceKey);
+      $customField.removeClass('is-hidden');
       return;
     }
     $picker.val('');
+    $customField.addClass('is-hidden');
   }
 
   function toggleCard($button) {
@@ -267,7 +291,7 @@
       renderPreview();
     });
 
-    $(document).on('change', '[name*=\"[data_source]\"]', function () {
+    $(document).on('change', '.hlm-data-source', function () {
       applyAutoValues($(this).closest('.hlm-filter-row'));
       updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
       renderPreview();
@@ -290,7 +314,7 @@
       var isHidden = $advanced.hasClass('is-hidden');
       $advanced.toggleClass('is-hidden', !isHidden);
       $(this).attr('aria-expanded', isHidden ? 'true' : 'false');
-      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide Advanced' : 'Advanced'));
+      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide advanced' : 'Show advanced'));
     });
 
     $(document).on('click', '.hlm-toggle-filter', function (event) {
@@ -312,7 +336,7 @@
       renderPreview();
     });
 
-    $(document).on('change', '[name*=\"[data_source]\"]', function () {
+    $(document).on('change', '.hlm-data-source', function () {
       var $row = $(this).closest('.hlm-filter-row');
       var type = $row.find('[name*=\"[type]\"]').val();
       var source = $(this).val();
@@ -324,8 +348,35 @@
       renderPreview();
     });
 
-    $(document).on('change', '[name*=\"[source_key]\"]', function () {
+    $(document).on('input', '[name*=\"[custom_source]\"]', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      $row.find('.hlm-source-key').val($(this).val());
+      $row.find('.hlm-data-source').val('taxonomy');
+      updateSourcePickerFromFields($row);
+    });
+
+    $(document).on('change', '.hlm-source-key', function () {
       updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
+    });
+
+    $(document).on('click', '.hlm-select-all', function (event) {
+      event.preventDefault();
+      var target = $(this).data('target');
+      var $select = $('#' + target);
+      if ($select.length) {
+        $select.find('option').prop('selected', true);
+        $select.trigger('change');
+      }
+    });
+
+    $(document).on('click', '.hlm-clear-all', function (event) {
+      event.preventDefault();
+      var target = $(this).data('target');
+      var $select = $('#' + target);
+      if ($select.length) {
+        $select.find('option').prop('selected', false);
+        $select.trigger('change');
+      }
     });
 
     $('#hlm-filters-list .hlm-filter-row').each(function () {

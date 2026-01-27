@@ -227,6 +227,10 @@
   display: none;
 }
 
+.hlm-swatch-only.is-hidden {
+  display: none !important;
+}
+
 .hlm-filter-actions .hlm-swatch-only.is-hidden {
   display: none;
 }
@@ -237,6 +241,20 @@
 
 .hlm-filter-actions .hlm-toggle-advanced {
   background: #fff;
+}
+
+.hlm-custom-source.is-hidden {
+  display: none;
+}
+
+.hlm-multi-actions {
+  display: inline-flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.hlm-multi-actions .button-link {
+  padding: 0;
 }
 
 .hlm-filter-checkbox {
