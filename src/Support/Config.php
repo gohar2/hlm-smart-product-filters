@@ -47,11 +47,12 @@ final class Config
                     'text_color' => '#0f172a',
                     'border_color' => '#e2e8f0',
                     'muted_text_color' => '#64748b',
-                    'panel_gradient' => 'linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0))',
+                    'panel_gradient' => '#f8fafc',
                     'radius' => 10,
                     'spacing' => 12,
                     'density' => 'comfy',
                     'header_style' => 'pill',
+                    'list_layout' => 'stacked',
                     'font_scale' => 100,
                     'font_family' => 'inherit',
                 ],
@@ -92,11 +93,12 @@ final class Config
                     'text_color' => $this->sanitize_color($global['ui']['text_color'] ?? $defaults['global']['ui']['text_color']),
                     'border_color' => $this->sanitize_color($global['ui']['border_color'] ?? $defaults['global']['ui']['border_color']),
                     'muted_text_color' => $this->sanitize_color($global['ui']['muted_text_color'] ?? $defaults['global']['ui']['muted_text_color']),
-                    'panel_gradient' => sanitize_text_field((string) ($global['ui']['panel_gradient'] ?? $defaults['global']['ui']['panel_gradient'])),
+                    'panel_gradient' => $this->sanitize_color($global['ui']['panel_gradient'] ?? $defaults['global']['ui']['panel_gradient']),
                     'radius' => $this->to_int($global['ui']['radius'] ?? $defaults['global']['ui']['radius'], 0),
                     'spacing' => $this->to_int($global['ui']['spacing'] ?? $defaults['global']['ui']['spacing'], 0),
                     'density' => $this->sanitize_enum($global['ui']['density'] ?? $defaults['global']['ui']['density'], ['compact', 'comfy', 'airy']),
                     'header_style' => $this->sanitize_enum($global['ui']['header_style'] ?? $defaults['global']['ui']['header_style'], ['pill', 'underline', 'plain']),
+                    'list_layout' => $this->sanitize_enum($global['ui']['list_layout'] ?? $defaults['global']['ui']['list_layout'], ['stacked', 'inline']),
                     'font_scale' => $this->to_int_range($global['ui']['font_scale'] ?? $defaults['global']['ui']['font_scale'], 80, 140),
                     'font_family' => sanitize_text_field((string) ($global['ui']['font_family'] ?? $defaults['global']['ui']['font_family'])),
                 ],
@@ -169,7 +171,7 @@ final class Config
                 continue;
             }
 
-            $type = $this->sanitize_enum($filter['type'] ?? 'checkbox', ['checkbox', 'dropdown', 'swatch', 'range']);
+            $type_raw = $filter['type'] ?? '';
             $data_source = $this->sanitize_enum($filter['data_source'] ?? 'taxonomy', ['taxonomy', 'attribute', 'product_cat', 'product_tag']);
             $source_key = $this->sanitize_key($filter['source_key'] ?? '');
             if ($data_source === 'attribute' && strpos($source_key, 'pa_') === 0) {
@@ -179,6 +181,14 @@ final class Config
 
             $behavior = is_array($filter['behavior'] ?? null) ? $filter['behavior'] : [];
             $visibility = is_array($filter['visibility'] ?? null) ? $filter['visibility'] : [];
+            $ui_style_raw = $ui['style'] ?? ($filter['style'] ?? '');
+            if ($ui_style_raw !== '') {
+                $ui_style_raw = $this->sanitize_enum($ui_style_raw, ['list', 'swatch', 'dropdown']);
+                $type_raw = $ui_style_raw === 'list' ? 'checkbox' : $ui_style_raw;
+            }
+            $type = $this->sanitize_enum($type_raw ?: 'checkbox', ['checkbox', 'dropdown', 'swatch', 'range']);
+            $ui_style = $this->sanitize_enum($ui_style_raw ?: ($type === 'checkbox' || $type === 'range' ? 'list' : $type), ['list', 'swatch', 'dropdown']);
+            $ui_layout = $this->sanitize_enum($ui['layout'] ?? ($filter['layout'] ?? 'inherit'), ['inherit', 'stacked', 'inline']);
 
             $sanitized[] = [
                 'id' => $id,
@@ -202,10 +212,11 @@ final class Config
                     'hide_empty' => $this->to_bool($visibility['hide_empty'] ?? false),
                 ],
                 'ui' => [
-                    'style' => $this->sanitize_enum($ui['style'] ?? ($filter['style'] ?? 'list'), ['list', 'swatch', 'dropdown']),
+                    'style' => $ui_style,
                     'swatch_type' => $this->sanitize_enum($ui['swatch_type'] ?? ($filter['swatch_type'] ?? 'color'), ['color', 'image', 'text']),
                     'swatch_map' => $this->sanitize_swatch_map($ui['swatch_map'] ?? ($filter['swatch_map'] ?? [])),
                     'show_more_threshold' => $this->to_int($ui['show_more_threshold'] ?? ($filter['show_more_threshold'] ?? 0), 0),
+                    'layout' => $ui_layout,
                 ],
             ];
         }

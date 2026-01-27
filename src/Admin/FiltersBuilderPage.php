@@ -181,10 +181,28 @@ final class FiltersBuilderPage
         $hide_on_categories = $filter['visibility']['hide_on_categories'] ?? [];
         $show_on_tags = $filter['visibility']['show_on_tags'] ?? [];
         $hide_on_tags = $filter['visibility']['hide_on_tags'] ?? [];
-        $style = $filter['ui']['style'] ?? 'list';
         $swatch_type = $filter['ui']['swatch_type'] ?? 'color';
+        $layout = $filter['ui']['layout'] ?? 'inherit';
         $show_more_threshold = (string) ($filter['ui']['show_more_threshold'] ?? '');
         $swatch_map = $this->swatch_lines($filter['ui']['swatch_map'] ?? []);
+        $source_picker = '';
+        if ($data_source === 'product_cat' || $data_source === 'product_tag') {
+            $source_picker = $data_source;
+        } elseif ($data_source === 'attribute' && $source_key !== '') {
+            $source_picker = $source_key;
+        }
+
+        $source_options = [
+            '' => __('Select source', 'hlm-smart-product-filters'),
+            'product_cat' => __('Product category', 'hlm-smart-product-filters'),
+            'product_tag' => __('Product tag', 'hlm-smart-product-filters'),
+        ];
+        foreach ($this->attributes as $attribute) {
+            $source_options[$attribute['slug']] = sprintf(
+                __('%s (attribute)', 'hlm-smart-product-filters'),
+                $attribute['label']
+            );
+        }
 
         echo '<li class="hlm-filter-row">';
         echo '<div class="hlm-filter-handle" title="' . esc_attr__('Drag to reorder', 'hlm-smart-product-filters') . '"><span class="dashicons dashicons-menu"></span></div>';
@@ -195,43 +213,24 @@ final class FiltersBuilderPage
         echo '<span class="hlm-filter-meta">' . esc_html($type) . ' · ' . esc_html($data_source) . '</span>';
         echo '</div>';
         echo '<div class="hlm-filter-actions">';
-        echo '<button type="button" class="button hlm-edit-swatch" data-index="' . esc_attr($index) . '"><span class="dashicons dashicons-art"></span>' . esc_html__('Swatches', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="button hlm-edit-swatch hlm-swatch-only" data-index="' . esc_attr($index) . '"><span class="dashicons dashicons-art"></span>' . esc_html__('Swatches', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="button hlm-toggle-advanced" aria-expanded="false"><span class="dashicons dashicons-admin-generic"></span>' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="button hlm-toggle-filter" aria-expanded="true"><span class="dashicons dashicons-arrow-up-alt2"></span>' . esc_html__('Collapse', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
         echo '</div>';
         echo '<div class="hlm-filter-fields">';
         echo '<div class="hlm-filter-section"><h3>' . esc_html__('Basics', 'hlm-smart-product-filters') . '</h3>';
 
-        $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, ['data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters')]);
-        $this->text_field($index, 'label', __('Label', 'hlm-smart-product-filters'), $label, ['data-help' => __('Shown to shoppers.', 'hlm-smart-product-filters')]);
-        $this->text_field($index, 'key', __('Key (query string)', 'hlm-smart-product-filters'), $key, ['data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters')]);
-
-        $this->select_field($index, 'type', __('Type', 'hlm-smart-product-filters'), $type, [
-            'checkbox' => __('Checkbox', 'hlm-smart-product-filters'),
-            'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
-            'swatch' => __('Swatch', 'hlm-smart-product-filters'),
-            'range' => __('Range (future)', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('How shoppers select options.', 'hlm-smart-product-filters')]);
+        $this->text_field($index, 'label', __('Label', 'hlm-smart-product-filters'), $label, [
+            'data-help' => __('Shown to shoppers.', 'hlm-smart-product-filters'),
+        ]);
         echo '</div>';
 
         echo '<div class="hlm-filter-section"><h3>' . esc_html__('Data Source', 'hlm-smart-product-filters') . '</h3>';
-        $this->select_field($index, 'data_source', __('Data source', 'hlm-smart-product-filters'), $data_source, [
-            'taxonomy' => __('Custom taxonomy', 'hlm-smart-product-filters'),
-            'attribute' => __('Attribute (pa_*)', 'hlm-smart-product-filters'),
-            'product_cat' => __('Product category', 'hlm-smart-product-filters'),
-            'product_tag' => __('Product tag', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('Where options come from.', 'hlm-smart-product-filters')]);
-
-        $this->text_field($index, 'source_key', __('Source key (taxonomy/attribute slug)', 'hlm-smart-product-filters'), $source_key, [
-            'list' => 'hlm-source-options',
-            'data-help' => __('Example: color or product_cat.', 'hlm-smart-product-filters'),
+        $this->select_field($index, 'source_picker', __('Source', 'hlm-smart-product-filters'), $source_picker, $source_options, [
+            'class' => 'hlm-source-picker',
+            'data-help' => __('Pick a built-in source or attribute. For custom taxonomies use Advanced.', 'hlm-smart-product-filters'),
         ]);
-
-        $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
-            'both' => __('Shortcode + auto', 'hlm-smart-product-filters'),
-            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
-            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
 
         echo '</div>';
 
@@ -256,19 +255,35 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<div class="hlm-filter-section"><h3>' . esc_html__('UI', 'hlm-smart-product-filters') . '</h3>';
-        $this->select_field($index, 'ui][style', __('Display style', 'hlm-smart-product-filters'), $style, [
-            'list' => __('List', 'hlm-smart-product-filters'),
-            'swatch' => __('Swatch', 'hlm-smart-product-filters'),
+        $this->select_field($index, 'type', __('Display type', 'hlm-smart-product-filters'), $type, [
+            'checkbox' => __('List (checkboxes)', 'hlm-smart-product-filters'),
             'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('UI layout for options.', 'hlm-smart-product-filters')]);
+            'swatch' => __('Swatch', 'hlm-smart-product-filters'),
+            'range' => __('Range (coming soon)', 'hlm-smart-product-filters'),
+        ], ['data-help' => __('How shoppers select options. Swatches show visual chips (color, image, or text).', 'hlm-smart-product-filters')]);
+
+        $this->select_field($index, 'ui][layout', __('List layout', 'hlm-smart-product-filters'), $layout, [
+            'inherit' => __('Use default (settings)', 'hlm-smart-product-filters'),
+            'stacked' => __('Stacked (new lines)', 'hlm-smart-product-filters'),
+            'inline' => __('Inline (same line)', 'hlm-smart-product-filters'),
+        ], [
+            'data-help' => __('Only for list filters.', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-list-only',
+        ]);
 
         $this->select_field($index, 'ui][swatch_type', __('Swatch type', 'hlm-smart-product-filters'), $swatch_type, [
             'color' => __('Color', 'hlm-smart-product-filters'),
             'image' => __('Image URL', 'hlm-smart-product-filters'),
             'text' => __('Text', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('How swatches are rendered.', 'hlm-smart-product-filters')]);
+        ], [
+            'data-help' => __('How swatches are rendered.', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-swatch-only',
+        ]);
 
-        $this->text_field($index, 'ui][show_more_threshold', __('Show more threshold', 'hlm-smart-product-filters'), $show_more_threshold, ['data-help' => __('Hide options after N.', 'hlm-smart-product-filters')]);
+        $this->text_field($index, 'ui][show_more_threshold', __('Show more threshold', 'hlm-smart-product-filters'), $show_more_threshold, [
+            'data-help' => __('Hide options after N (list + swatch).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-show-more-only',
+        ]);
 
         echo '<label class="hlm-filter-checkbox">';
         printf(
@@ -282,7 +297,34 @@ final class FiltersBuilderPage
             esc_html__('Hide empty terms', 'hlm-smart-product-filters')
         );
         echo '</label>';
-        $this->textarea_field($index, 'swatch_map', __('Swatch map (term_id: value per line)', 'hlm-smart-product-filters'), $swatch_map);
+        $this->textarea_field($index, 'swatch_map', __('Swatch map (term_id: value per line)', 'hlm-smart-product-filters'), $swatch_map, [
+            'wrapper_class' => 'hlm-swatch-only',
+        ]);
+        echo '</div>';
+
+        echo '<div class="hlm-filter-section hlm-filter-advanced is-hidden">';
+        echo '<h3>' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</h3>';
+        $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, [
+            'data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters'),
+        ]);
+        $this->text_field($index, 'key', __('Key (query string)', 'hlm-smart-product-filters'), $key, [
+            'data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters'),
+        ]);
+        $this->select_field($index, 'data_source', __('Data source', 'hlm-smart-product-filters'), $data_source, [
+            'taxonomy' => __('Custom taxonomy', 'hlm-smart-product-filters'),
+            'attribute' => __('Attribute (pa_*)', 'hlm-smart-product-filters'),
+            'product_cat' => __('Product category', 'hlm-smart-product-filters'),
+            'product_tag' => __('Product tag', 'hlm-smart-product-filters'),
+        ]);
+        $this->text_field($index, 'source_key', __('Source key (taxonomy/attribute slug)', 'hlm-smart-product-filters'), $source_key, [
+            'list' => 'hlm-source-options',
+            'data-help' => __('Example: color or product_cat.', 'hlm-smart-product-filters'),
+        ]);
+        $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
+            'both' => __('Shortcode + auto', 'hlm-smart-product-filters'),
+            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
+            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
+        ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
         echo '</div>';
 
         echo '<div class="hlm-filter-section"><h3>' . esc_html__('Visibility', 'hlm-smart-product-filters') . '</h3>';
@@ -327,15 +369,21 @@ final class FiltersBuilderPage
     private function text_field($index, string $name, string $label, string $value, array $attrs = []): void
     {
         $attr_html = '';
+        $wrapper_class = 'hlm-filter-field';
         $help = $attrs['data-help'] ?? '';
         if ($help) {
             unset($attrs['data-help']);
+        }
+        if (!empty($attrs['wrapper_class'])) {
+            $wrapper_class .= ' ' . $attrs['wrapper_class'];
+            unset($attrs['wrapper_class']);
         }
         foreach ($attrs as $attr => $attr_value) {
             $attr_html .= ' ' . esc_attr($attr) . '="' . esc_attr($attr_value) . '"';
         }
         printf(
-            '<label class="hlm-filter-field">%s%s<input type="text" name="filters[%s][%s]" value="%s" class="regular-text"%s></label>',
+            '<label class="%s">%s%s<input type="text" name="filters[%s][%s]" value="%s" class="regular-text"%s></label>',
+            esc_attr($wrapper_class),
             esc_html($label),
             $help ? '<span class="hlm-help" title="' . esc_attr($help) . '">?</span>' : '',
             esc_attr($index),
@@ -345,10 +393,15 @@ final class FiltersBuilderPage
         );
     }
 
-    private function textarea_field($index, string $name, string $label, string $value): void
+    private function textarea_field($index, string $name, string $label, string $value, array $attrs = []): void
     {
+        $wrapper_class = 'hlm-filter-field';
+        if (!empty($attrs['wrapper_class'])) {
+            $wrapper_class .= ' ' . $attrs['wrapper_class'];
+        }
         printf(
-            '<label class="hlm-filter-field">%s<textarea name="filters[%s][%s]" rows="4" class="large-text">%s</textarea></label>',
+            '<label class="%s">%s<textarea name="filters[%s][%s]" rows="4" class="large-text">%s</textarea></label>',
+            esc_attr($wrapper_class),
             esc_html($label),
             esc_attr($index),
             esc_attr($name),
@@ -362,11 +415,16 @@ final class FiltersBuilderPage
         if ($help) {
             unset($attrs['data-help']);
         }
+        $wrapper_class = 'hlm-filter-field';
+        if (!empty($attrs['wrapper_class'])) {
+            $wrapper_class .= ' ' . $attrs['wrapper_class'];
+            unset($attrs['wrapper_class']);
+        }
         $attr_html = '';
         foreach ($attrs as $attr => $attr_value) {
             $attr_html .= ' ' . esc_attr($attr) . '="' . esc_attr($attr_value) . '"';
         }
-        echo '<label class="hlm-filter-field">' . esc_html($label) . ($help ? '<span class="hlm-help" title="' . esc_attr($help) . '">?</span>' : '') . '<select name="filters[' . esc_attr($index) . '][' . esc_attr($name) . ']"' . $attr_html . '>';
+        echo '<label class="' . esc_attr($wrapper_class) . '">' . esc_html($label) . ($help ? '<span class="hlm-help" title="' . esc_attr($help) . '">?</span>' : '') . '<select name="filters[' . esc_attr($index) . '][' . esc_attr($name) . ']"' . $attr_html . '>';
         foreach ($options as $option_value => $option_label) {
             printf(
                 '<option value="%s" %s>%s</option>',

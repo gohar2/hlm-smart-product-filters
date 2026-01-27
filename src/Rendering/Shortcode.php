@@ -112,6 +112,10 @@ final class Shortcode
                     return isset($counts[$term_id]) && $counts[$term_id] > 0;
                 }));
             }
+            $layout = (string) ($filter['ui']['layout'] ?? 'inherit');
+            if ($layout === '' || $layout === 'inherit') {
+                $layout = (string) ($config['global']['ui']['list_layout'] ?? 'stacked');
+            }
 
             $filter_items[] = [
                 'key' => $key,
@@ -125,6 +129,7 @@ final class Shortcode
                 'swatch_map' => $filter['ui']['swatch_map'] ?? [],
                 'swatch_type' => (string) ($filter['ui']['swatch_type'] ?? 'color'),
                 'show_more_threshold' => (int) ($filter['ui']['show_more_threshold'] ?? 0),
+                'layout' => $layout,
             ];
 
             $filter_items[count($filter_items) - 1] = apply_filters(

@@ -102,7 +102,7 @@ final class SettingsPage
         $this->add_color_field('ui][text_color', __('Text color', 'hlm-smart-product-filters'));
         $this->add_color_field('ui][border_color', __('Border color', 'hlm-smart-product-filters'));
         $this->add_color_field('ui][muted_text_color', __('Muted text color', 'hlm-smart-product-filters'));
-        $this->add_text_field('ui][panel_gradient', __('Panel gradient', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][panel_gradient', __('Panel background', 'hlm-smart-product-filters'));
         $this->add_text_field('ui][radius', __('Corner radius (px)', 'hlm-smart-product-filters'));
         $this->add_text_field('ui][spacing', __('Vertical spacing (px)', 'hlm-smart-product-filters'));
         $this->add_select_field('ui][density', __('Density', 'hlm-smart-product-filters'), [
@@ -114,6 +114,10 @@ final class SettingsPage
             'pill' => __('Pill', 'hlm-smart-product-filters'),
             'underline' => __('Underline', 'hlm-smart-product-filters'),
             'plain' => __('Plain', 'hlm-smart-product-filters'),
+        ]);
+        $this->add_select_field('ui][list_layout', __('Default list layout', 'hlm-smart-product-filters'), [
+            'stacked' => __('Stacked (new lines)', 'hlm-smart-product-filters'),
+            'inline' => __('Inline (same line)', 'hlm-smart-product-filters'),
         ]);
         $this->add_text_field('ui][font_scale', __('Font scale (%)', 'hlm-smart-product-filters'));
         $this->add_text_field('ui][font_family', __('Font family', 'hlm-smart-product-filters'));

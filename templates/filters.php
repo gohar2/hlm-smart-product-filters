@@ -61,6 +61,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
             $style = $filter['style'] ?? $filter['type'];
             $threshold = (int) ($filter['show_more_threshold'] ?? 0);
             $term_count = is_array($filter['terms']) ? count($filter['terms']) : 0;
+            $layout = $filter['layout'] ?? 'stacked';
             ?>
             <?php $list_id = 'hlm-filter-' . esc_attr($filter['key']); ?>
             <fieldset class="hlm-filter" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>">
@@ -119,7 +120,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                         <p class="hlm-empty"><?php echo esc_html__('No options available.', 'hlm-smart-product-filters'); ?></p>
                     <?php endif; ?>
                 <?php else : ?>
-                    <ul id="<?php echo esc_attr($list_id); ?>">
+                    <ul id="<?php echo esc_attr($list_id); ?>" class="hlm-filter-list<?php echo $layout === 'inline' ? ' is-inline' : ''; ?>">
                         <?php foreach ($filter['terms'] as $index => $term) : ?>
                             <?php $count = $filter['counts'][$term->term_id] ?? null; ?>
                             <?php $hidden = $threshold > 0 && $index >= $threshold ? ' data-hlm-hidden="true"' : ''; ?>

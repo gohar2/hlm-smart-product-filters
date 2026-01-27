@@ -148,12 +148,24 @@
   padding: 0;
 }
 
-.hlm-filter ul {
+.hlm-filter ul.hlm-filter-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 8px;
+}
+
+.hlm-filter ul.hlm-filter-list.is-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hlm-filter ul.hlm-filter-list.is-inline label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .hlm-filter-actions {

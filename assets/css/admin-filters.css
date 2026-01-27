@@ -223,6 +223,22 @@
   display: none;
 }
 
+.hlm-filter-field.is-hidden {
+  display: none;
+}
+
+.hlm-filter-actions .hlm-swatch-only.is-hidden {
+  display: none;
+}
+
+.hlm-filter-advanced.is-hidden {
+  display: none;
+}
+
+.hlm-filter-actions .hlm-toggle-advanced {
+  background: #fff;
+}
+
 .hlm-filter-checkbox {
   display: block;
   margin-top: 8px;

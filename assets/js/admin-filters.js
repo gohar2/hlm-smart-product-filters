@@ -30,6 +30,10 @@
     if (!keyInput.val() && labelInput.val()) {
       keyInput.val(normalizeKey(labelInput.val()));
     }
+    var idInput = $row.find('[name*="[id]"]');
+    if (!idInput.val() && keyInput.val()) {
+      idInput.val(normalizeKey(keyInput.val()));
+    }
   }
 
   function renderPreview() {
@@ -42,16 +46,18 @@
     $('#hlm-filters-list .hlm-filter-row').each(function () {
       var $row = $(this);
       var label = $row.find('[name*="[label]"]').val() || 'Filter';
-      var style = $row.find('[name*="[ui][style]"]').val() || 'list';
+      var type = $row.find('[name*="[type]"]').val() || 'checkbox';
       var card = $('<div class=\"hlm-admin-preview-card\"></div>');
       card.append('<h4>' + label + '</h4>');
 
       var items = $('<div class=\"hlm-admin-preview-items\"></div>');
-      if (style === 'swatch') {
+      if (type === 'swatch') {
         items.append('<span class=\"hlm-admin-chip\">Swatch</span>');
         items.append('<span class=\"hlm-admin-chip\">Swatch</span>');
-      } else if (style === 'dropdown') {
+      } else if (type === 'dropdown') {
         items.append('<span class=\"hlm-admin-chip\">Dropdown</span>');
+      } else if (type === 'range') {
+        items.append('<span class=\"hlm-admin-chip\">Range</span>');
       } else {
         items.append('<span class=\"hlm-admin-chip\">Option A</span>');
         items.append('<span class=\"hlm-admin-chip\">Option B</span>');
@@ -60,6 +66,58 @@
       card.append(items);
       $preview.append(card);
     });
+  }
+
+  function updateTypeVisibility($row) {
+    var type = $row.find('[name*="[type]"]').val() || 'checkbox';
+    var isSwatch = type === 'swatch';
+    var showMore = type === 'checkbox' || type === 'swatch';
+    var isList = type === 'checkbox';
+    $row.find('.hlm-swatch-only').toggleClass('is-hidden', !isSwatch);
+    $row.find('.hlm-show-more-only').toggleClass('is-hidden', !showMore);
+    $row.find('.hlm-list-only').toggleClass('is-hidden', !isList);
+  }
+
+  function updateSourceFromPicker($row) {
+    var value = $row.find('.hlm-source-picker').val() || '';
+    if (!value) {
+      return;
+    }
+    var $dataSource = $row.find('[name*="[data_source]"]');
+    var $sourceKey = $row.find('[name*="[source_key]"]');
+    if (value === 'product_cat' || value === 'product_tag') {
+      $dataSource.val(value);
+      $sourceKey.val(value);
+    } else {
+      $dataSource.val('attribute');
+      $sourceKey.val(value);
+    }
+
+    var keyInput = $row.find('[name*="[key]"]');
+    if (!keyInput.val()) {
+      keyInput.val(normalizeKey(value));
+    }
+    applyAutoValues($row);
+    $dataSource.trigger('change');
+    $sourceKey.trigger('change');
+  }
+
+  function updateSourcePickerFromFields($row) {
+    var dataSource = $row.find('[name*="[data_source]"]').val();
+    var sourceKey = $row.find('[name*="[source_key]"]').val();
+    var $picker = $row.find('.hlm-source-picker');
+    if (!$picker.length) {
+      return;
+    }
+    if (dataSource === 'product_cat' || dataSource === 'product_tag') {
+      $picker.val(dataSource);
+      return;
+    }
+    if (dataSource === 'attribute' && sourceKey) {
+      $picker.val(sourceKey);
+      return;
+    }
+    $picker.val('');
   }
 
   function toggleCard($button) {
@@ -179,7 +237,9 @@
     var index = $('#hlm-filters-list .hlm-filter-row').length;
     var html = template.replace(/__INDEX__/g, index);
     $('#hlm-filters-list').append(html);
-    applyAutoValues($('#hlm-filters-list .hlm-filter-row').last());
+    var $row = $('#hlm-filters-list .hlm-filter-row').last();
+    applyAutoValues($row);
+    updateTypeVisibility($row);
     renderPreview();
   }
 
@@ -209,6 +269,7 @@
 
     $(document).on('change', '[name*=\"[data_source]\"]', function () {
       applyAutoValues($(this).closest('.hlm-filter-row'));
+      updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
       renderPreview();
     });
 
@@ -217,13 +278,19 @@
       renderPreview();
     });
 
-    $(document).on('change', '[name*=\"[ui][style]\"]', function () {
-      renderPreview();
-    });
-
     $(document).on('click', '.hlm-edit-swatch', function (event) {
       event.preventDefault();
       openSwatchModal($(this).closest('.hlm-filter-row'));
+    });
+
+    $(document).on('click', '.hlm-toggle-advanced', function (event) {
+      event.preventDefault();
+      var $row = $(this).closest('.hlm-filter-row');
+      var $advanced = $row.find('.hlm-filter-advanced');
+      var isHidden = $advanced.hasClass('is-hidden');
+      $advanced.toggleClass('is-hidden', !isHidden);
+      $(this).attr('aria-expanded', isHidden ? 'true' : 'false');
+      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide Advanced' : 'Advanced'));
     });
 
     $(document).on('click', '.hlm-toggle-filter', function (event) {
@@ -241,6 +308,8 @@
       var type = $(this).val();
       var source = $row.find('[name*=\"[data_source]\"]').val();
       $row.find('.hlm-filter-meta').text(type + ' · ' + source);
+      updateTypeVisibility($row);
+      renderPreview();
     });
 
     $(document).on('change', '[name*=\"[data_source]\"]', function () {
@@ -248,6 +317,21 @@
       var type = $row.find('[name*=\"[type]\"]').val();
       var source = $(this).val();
       $row.find('.hlm-filter-meta').text(type + ' · ' + source);
+    });
+
+    $(document).on('change', '.hlm-source-picker', function () {
+      updateSourceFromPicker($(this).closest('.hlm-filter-row'));
+      renderPreview();
+    });
+
+    $(document).on('change', '[name*=\"[source_key]\"]', function () {
+      updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
+    });
+
+    $('#hlm-filters-list .hlm-filter-row').each(function () {
+      var $row = $(this);
+      updateTypeVisibility($row);
+      updateSourcePickerFromFields($row);
     });
 
     renderPreview();
