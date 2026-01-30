@@ -305,18 +305,23 @@
   }
 
   function toggleLoading($form, isLoading) {
-    var $wrap = $form.closest('.hlm-filters-wrap');
-    var $overlay = $wrap.find('.hlm-filters-loading').first();
-    
-    if (!$overlay.length) {
-      $overlay = getGlobalOverlay();
-    }
+    // Always use global overlay for full-screen coverage
+    var $overlay = getGlobalOverlay();
 
     if (isLoading) {
       $form.attr('aria-busy', 'true').addClass('is-loading');
-      $overlay.addClass('is-active').attr('aria-hidden', 'false').css('display', 'flex');
+      $overlay.addClass('is-active').attr('aria-hidden', 'false').css({
+        'display': 'flex',
+        'position': 'fixed',
+        'inset': '0',
+        'z-index': '999999',
+        'background': 'rgba(15, 23, 42, 0.4)',
+        'backdrop-filter': 'blur(4px)'
+      });
       var resultSelector = $form.data('results') || '.products';
       $(resultSelector).first().attr('aria-busy', 'true');
+      // Prevent body scroll when overlay is active
+      $('body').css('overflow', 'hidden');
       return;
     }
 
@@ -324,6 +329,8 @@
     $overlay.removeClass('is-active').attr('aria-hidden', 'true').css('display', 'none');
     var resultSelector = $form.data('results') || '.products';
     $(resultSelector).first().removeAttr('aria-busy');
+    // Restore body scroll
+    $('body').css('overflow', '');
   }
 
   function handleSubmit(event) {

@@ -105,7 +105,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                                     <?php elseif ($swatch_type === 'text' && $swatch !== '') : ?>
                                         <span class="hlm-swatch-chip hlm-swatch-text"><?php echo esc_html($swatch); ?></span>
                                     <?php else : ?>
-                                        <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch); ?>"></span>
+                                        <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch ? $swatch : '#ccc'); ?>"></span>
                                     <?php endif; ?>
                                     <span class="hlm-swatch-label"><?php echo esc_html($term->name); ?></span>
                                     <?php if (!empty($enable_counts) && $count !== null) : ?>
