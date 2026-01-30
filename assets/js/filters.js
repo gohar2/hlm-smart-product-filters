@@ -258,6 +258,22 @@
       }
     }
 
+    // Re-hide items based on threshold after replacing filters
+    $('.hlm-show-more').each(function() {
+      var $button = $(this);
+      var $fieldset = $button.closest('.hlm-filter');
+      var threshold = parseInt($button.data('threshold') || '0', 10);
+      var isExpanded = $button.data('expanded') === true;
+      
+      if (threshold > 0 && !isExpanded) {
+        $fieldset.find('ul > li').each(function(index) {
+          if (index >= threshold) {
+            $(this).attr('data-hlm-hidden', 'true');
+          }
+        });
+      }
+    });
+    
     // Restore Show More expanded state after replacing filters
     restoreShowMoreState(showMoreState);
     

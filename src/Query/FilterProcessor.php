@@ -49,16 +49,30 @@ final class FilterProcessor
             }
 
             $type = $filter['data_source'] ?? 'taxonomy';
-            $taxonomy = $filter['source_key'] ?? '';
-            if ($type === 'attribute' && $taxonomy !== '') {
-                if (strpos($taxonomy, 'pa_') === 0) {
-                    $taxonomy = $taxonomy;
+            $source_key = $filter['source_key'] ?? '';
+            
+            // Resolve taxonomy based on data source type
+            if ($type === 'product_cat') {
+                $taxonomy = 'product_cat';
+            } elseif ($type === 'product_tag') {
+                $taxonomy = 'product_tag';
+            } elseif ($type === 'attribute' && $source_key !== '') {
+                if (strpos($source_key, 'pa_') === 0) {
+                    $taxonomy = $source_key;
                 } else {
-                    $taxonomy = wc_attribute_taxonomy_name($taxonomy);
+                    $taxonomy = wc_attribute_taxonomy_name($source_key);
                 }
+            } elseif ($type === 'custom' && $source_key !== '') {
+                // Custom taxonomy - use source_key directly
+                $taxonomy = $source_key;
+            } elseif ($source_key !== '') {
+                // Fallback: use source_key as taxonomy
+                $taxonomy = $source_key;
+            } else {
+                $taxonomy = '';
             }
 
-            if ($taxonomy === '') {
+            if ($taxonomy === '' || !taxonomy_exists($taxonomy)) {
                 continue;
             }
 
