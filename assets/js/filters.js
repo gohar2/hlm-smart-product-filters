@@ -302,18 +302,43 @@
       return $overlay;
     }
 
-    var $source = $('.hlm-filters-loading').first();
-    var html = $source.length ? $source.html() : '<div class=\"hlm-filters-loading-inner\"><span>Loading…</span></div>';
-    $overlay = $('<div id=\"hlm-global-loading\" class=\"hlm-filters-loading\" role=\"status\" aria-live=\"polite\" aria-hidden=\"true\"></div>');
+    // Create overlay with proper HTML structure
+    var html = '<div class="hlm-filters-loading-inner" role="alert" aria-busy="true">' +
+      '<svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">' +
+      '<defs>' +
+      '<linearGradient id="hlm-loader-gradient" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0%" stop-color="#0f766e"/>' +
+      '<stop offset="100%" stop-color="#14b8a6"/>' +
+      '</linearGradient>' +
+      '</defs>' +
+      '<circle class="hlm-loader-track" cx="60" cy="60" r="44" />' +
+      '<circle class="hlm-loader-ring" cx="60" cy="60" r="44" />' +
+      '</svg>' +
+      '<div class="hlm-loader-text">' +
+      '<strong>Updating results</strong>' +
+      '<span>Applying filters…</span>' +
+      '</div>' +
+      '</div>';
+    
+    $overlay = $('<div id="hlm-global-loading" class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true"></div>');
     $overlay.html(html);
 
     $overlay.css({
       position: 'fixed',
-      inset: 0,
+      top: '0',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      width: '100%',
+      height: '100%',
       display: 'none',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999
+      zIndex: '999999',
+      background: 'rgba(15, 23, 42, 0.4)',
+      backdropFilter: 'blur(4px)',
+      margin: '0',
+      padding: '0'
     });
 
     $('body').append($overlay);
@@ -326,14 +351,25 @@
 
     if (isLoading) {
       $form.attr('aria-busy', 'true').addClass('is-loading');
-      $overlay.addClass('is-active').attr('aria-hidden', 'false').css({
-        'display': 'flex',
-        'position': 'fixed',
-        'inset': '0',
-        'z-index': '999999',
-        'background': 'rgba(15, 23, 42, 0.4)',
-        'backdrop-filter': 'blur(4px)'
-      });
+      $overlay
+        .addClass('is-active')
+        .attr('aria-hidden', 'false')
+        .css({
+          'display': 'flex',
+          'position': 'fixed',
+          'top': '0',
+          'left': '0',
+          'right': '0',
+          'bottom': '0',
+          'width': '100%',
+          'height': '100%',
+          'z-index': '999999',
+          'background': 'rgba(15, 23, 42, 0.4)',
+          'backdrop-filter': 'blur(4px)',
+          'margin': '0',
+          'padding': '0'
+        })
+        .show(); // Explicitly show the overlay
       var resultSelector = $form.data('results') || '.products';
       $(resultSelector).first().attr('aria-busy', 'true');
       // Prevent body scroll when overlay is active
@@ -342,7 +378,11 @@
     }
 
     $form.removeAttr('aria-busy').removeClass('is-loading');
-    $overlay.removeClass('is-active').attr('aria-hidden', 'true').css('display', 'none');
+    $overlay
+      .removeClass('is-active')
+      .attr('aria-hidden', 'true')
+      .css('display', 'none')
+      .hide(); // Explicitly hide the overlay
     var resultSelector = $form.data('results') || '.products';
     $(resultSelector).first().removeAttr('aria-busy');
     // Restore body scroll
@@ -527,6 +567,9 @@
   $(function () {
     initCollapsible();
     
+    // Pre-initialize the global overlay so it's always available
+    getGlobalOverlay();
+    
     // Ensure AJAX handlers are properly attached
     if (window.HLMFilters && window.HLMFilters.enableAjax) {
       // Make sure form submission is intercepted - use namespace to avoid conflicts
@@ -536,6 +579,9 @@
   
   // Also attach on document ready for dynamically added forms
   $(document).ready(function() {
+    // Pre-initialize the global overlay so it's always available
+    getGlobalOverlay();
+    
     if (window.HLMFilters && window.HLMFilters.enableAjax) {
       $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
     }
