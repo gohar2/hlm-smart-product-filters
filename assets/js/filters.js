@@ -353,7 +353,7 @@
       // Force overlay to be visible immediately
       $overlay
         .css({
-          'display': 'flex !important',
+          'display': 'flex',
           'position': 'fixed',
           'top': '0',
           'left': '0',
@@ -371,8 +371,11 @@
         })
         .addClass('is-active')
         .attr('aria-hidden', 'false')
-        .show()
-        .removeClass('is-hidden');
+        .show();
+      
+      // Use attr to set style with !important as fallback
+      var existingStyle = $overlay.attr('style') || '';
+      $overlay.attr('style', existingStyle + '; display: flex !important; visibility: visible !important; opacity: 1 !important;');
       
       $form.attr('aria-busy', 'true').addClass('is-loading');
       var resultSelector = $form.data('results') || '.products';

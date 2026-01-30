@@ -62,6 +62,9 @@
 }
 
 .hlm-filters-loading.is-active {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   display: flex;
 }
 
