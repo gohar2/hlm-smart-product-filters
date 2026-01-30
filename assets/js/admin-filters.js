@@ -426,6 +426,22 @@
     var $container = $row.find(type === 'category' ? '.hlm-category-select' : '.hlm-tag-select');
     var mode = $row.find('[name*="[' + type + '_mode]"]:checked').val() || 'all';
     $container.attr('data-mode', mode);
+    
+    // Show/hide the appropriate select lists
+    var $include = $container.find('.hlm-visibility-include');
+    var $exclude = $container.find('.hlm-visibility-exclude');
+    
+    if (mode === 'include') {
+      $include.show();
+      $exclude.hide();
+    } else if (mode === 'exclude') {
+      $include.hide();
+      $exclude.show();
+    } else {
+      // mode === 'all'
+      $include.hide();
+      $exclude.hide();
+    }
   }
 
   function addFilter() {
@@ -436,6 +452,9 @@
     var $row = $('#hlm-filters-list .hlm-filter-row').last();
     applyAutoValues($row);
     updateTypeVisibility($row);
+    // Initialize visibility modes for new row
+    updateVisibilityMode($row, 'category');
+    updateVisibilityMode($row, 'tag');
     renderPreview();
   }
 
@@ -618,6 +637,9 @@
       var $row = $(this);
       updateTypeVisibility($row);
       updateSourcePickerFromFields($row);
+      // Initialize visibility modes
+      updateVisibilityMode($row, 'category');
+      updateVisibilityMode($row, 'tag');
     });
 
     renderPreview();

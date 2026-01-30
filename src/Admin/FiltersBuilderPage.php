@@ -599,11 +599,13 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-category-select" data-mode="' . esc_attr($category_mode) . '">';
-        if ($category_mode === 'include') {
-            $this->multi_select_field($index, 'visibility][show_on_categories', __('Select categories', 'hlm-smart-product-filters'), $this->categories, $show_on_categories);
-        } elseif ($category_mode === 'exclude') {
-            $this->multi_select_field($index, 'visibility][hide_on_categories', __('Select categories to exclude', 'hlm-smart-product-filters'), $this->categories, $hide_on_categories);
-        }
+        // Always render both select lists, show/hide based on mode
+        echo '<div class="hlm-visibility-include"' . ($category_mode !== 'include' ? ' style="display:none;"' : '') . '>';
+        $this->multi_select_field($index, 'visibility][show_on_categories', __('Select categories', 'hlm-smart-product-filters'), $this->categories, $show_on_categories);
+        echo '</div>';
+        echo '<div class="hlm-visibility-exclude"' . ($category_mode !== 'exclude' ? ' style="display:none;"' : '') . '>';
+        $this->multi_select_field($index, 'visibility][hide_on_categories', __('Select categories to exclude', 'hlm-smart-product-filters'), $this->categories, $hide_on_categories);
+        echo '</div>';
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
@@ -644,11 +646,13 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-tag-select" data-mode="' . esc_attr($tag_mode) . '">';
-        if ($tag_mode === 'include') {
-            $this->multi_select_field($index, 'visibility][show_on_tags', __('Select tags', 'hlm-smart-product-filters'), $this->tags, $show_on_tags);
-        } elseif ($tag_mode === 'exclude') {
-            $this->multi_select_field($index, 'visibility][hide_on_tags', __('Select tags to exclude', 'hlm-smart-product-filters'), $this->tags, $hide_on_tags);
-        }
+        // Always render both select lists, show/hide based on mode
+        echo '<div class="hlm-visibility-include"' . ($tag_mode !== 'include' ? ' style="display:none;"' : '') . '>';
+        $this->multi_select_field($index, 'visibility][show_on_tags', __('Select tags', 'hlm-smart-product-filters'), $this->tags, $show_on_tags);
+        echo '</div>';
+        echo '<div class="hlm-visibility-exclude"' . ($tag_mode !== 'exclude' ? ' style="display:none;"' : '') . '>';
+        $this->multi_select_field($index, 'visibility][hide_on_tags', __('Select tags to exclude', 'hlm-smart-product-filters'), $this->tags, $hide_on_tags);
+        echo '</div>';
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
