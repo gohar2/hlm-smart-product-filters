@@ -15,9 +15,12 @@
   font-family: var(--hlm-font) !important;
   font-size: var(--hlm-font-scale) !important;
   color: var(--hlm-text) !important;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-x: hidden;
   box-sizing: border-box;
+  margin: 0 auto;
+  display: block;
 }
 
 .hlm-filters {
@@ -28,7 +31,8 @@
   border-radius: var(--hlm-radius) !important;
   padding: calc(var(--hlm-spacing) * 1.4) !important;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -49,9 +53,12 @@
 
 .hlm-filters-wrap {
   position: relative;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-x: hidden;
   box-sizing: border-box;
+  margin: 0 auto;
+  display: block;
 }
 
 .hlm-filters-loading.is-active {
@@ -137,6 +144,7 @@
   margin-bottom: calc(var(--hlm-spacing) * 0.6);
   width: 100%;
   color: var(--hlm-text) !important;
+  padding-top: 5px !important;
 }
 
 /* Collapsible filter panels */
@@ -746,4 +754,24 @@
   }
 }
 
+/* Ensure full width in sidebars and widgets */
+.widget .hlm-filters-wrap,
+.sidebar .hlm-filters-wrap,
+aside .hlm-filters-wrap,
+[class*="widget"] .hlm-filters-wrap,
+[class*="sidebar"] .hlm-filters-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto;
+  display: block;
+}
 
+/* Ensure filters form takes full width */
+.widget .hlm-filters,
+.sidebar .hlm-filters,
+aside .hlm-filters,
+[class*="widget"] .hlm-filters,
+[class*="sidebar"] .hlm-filters {
+  width: 100% !important;
+  max-width: 100% !important;
+}
