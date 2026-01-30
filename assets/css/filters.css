@@ -117,6 +117,7 @@
   border-radius: calc(var(--hlm-radius) - 2px);
   padding: calc(var(--hlm-spacing) * 1.1);
   background: var(--hlm-panel-gradient);
+  margin-bottom: calc(var(--hlm-spacing) * 0.6);
 }
 
 .hlm-filter legend {
@@ -258,7 +259,7 @@
   display: inline-flex;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(15, 118, 110, 0.12);
+  background: color-mix(in srgb, var(--hlm-accent) 12%, transparent);
 }
 
 .hlm-filters-wrap[data-header-style="underline"] .hlm-filter legend {
@@ -302,25 +303,28 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: calc(var(--hlm-spacing) * 0.5);
 }
 
 .hlm-filter ul.hlm-filter-list li {
   display: block;
+  margin: 0;
+  padding: 0;
 }
 
 .hlm-filter ul.hlm-filter-list label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: calc(var(--hlm-spacing) * 0.6);
+  padding: calc(var(--hlm-spacing) * 0.5) calc(var(--hlm-spacing) * 0.6);
   border-radius: calc(var(--hlm-radius) - 6px);
   transition: background-color 0.15s ease;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .hlm-filter ul.hlm-filter-list label:hover {
-  background: rgba(15, 118, 110, 0.06);
+  background: color-mix(in srgb, var(--hlm-accent) 6%, transparent);
 }
 
 .hlm-filter ul.hlm-filter-list input[type="checkbox"] {
@@ -335,32 +339,35 @@
 .hlm-filter ul.hlm-filter-list.is-inline {
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: calc(var(--hlm-spacing) * 0.6);
 }
 
 .hlm-filter ul.hlm-filter-list.is-inline li {
   display: inline-block;
+  margin: 0;
+  padding: 0;
 }
 
 .hlm-filter ul.hlm-filter-list.is-inline label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: calc(var(--hlm-spacing) * 0.5);
+  padding: calc(var(--hlm-spacing) * 0.5) calc(var(--hlm-spacing) * 0.8);
   background: rgba(15, 23, 42, 0.04);
   border-radius: calc(var(--hlm-radius) - 4px);
+  min-height: 36px;
 }
 
 .hlm-filter ul.hlm-filter-list.is-inline label:hover {
-  background: rgba(15, 118, 110, 0.1);
+  background: color-mix(in srgb, var(--hlm-accent) 10%, transparent);
 }
 
 .hlm-filter-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: calc(var(--hlm-spacing) * 0.8);
-  padding-top: calc(var(--hlm-spacing) * 0.8);
+  gap: calc(var(--hlm-spacing) * 0.8);
+  margin-top: calc(var(--hlm-spacing) * 1);
+  padding-top: calc(var(--hlm-spacing) * 1);
   border-top: 1px solid var(--hlm-border);
 }
 
@@ -369,11 +376,12 @@
 .hlm-filter-sort select {
   border-radius: calc(var(--hlm-radius) - 4px);
   border: 1px solid var(--hlm-border);
-  padding: 10px 18px;
+  padding: calc(var(--hlm-spacing) * 0.7) calc(var(--hlm-spacing) * 1.2);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.9em;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 /* Enhanced focus styles for accessibility (WCAG 2.1 AA) */
@@ -413,9 +421,21 @@
   border-color: var(--hlm-accent);
 }
 
+.hlm-filter-actions button:hover {
+  background: color-mix(in srgb, var(--hlm-accent) 90%, black);
+  border-color: color-mix(in srgb, var(--hlm-accent) 90%, black);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .hlm-filter-actions a {
   color: var(--hlm-text);
   background: transparent;
+}
+
+.hlm-filter-actions a:hover {
+  color: var(--hlm-accent);
+  text-decoration: underline;
 }
 
 .hlm-filter-sort {
@@ -453,17 +473,23 @@
 .hlm-swatch-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
-  gap: 10px;
+  gap: calc(var(--hlm-spacing) * 0.6);
 }
 
 .hlm-swatch {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: calc(var(--hlm-spacing) * 0.5);
+  padding: calc(var(--hlm-spacing) * 0.5) calc(var(--hlm-spacing) * 0.6);
   border-radius: calc(var(--hlm-radius) - 6px);
   border: 1px solid var(--hlm-border);
   background: #fff;
+  transition: all 0.15s ease;
+}
+
+.hlm-swatch:hover {
+  border-color: var(--hlm-accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .hlm-swatch input {

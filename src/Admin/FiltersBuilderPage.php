@@ -22,8 +22,6 @@ final class FiltersBuilderPage
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_post_hlm_save_filters', [$this, 'handle_save']);
         add_action('admin_post_hlm_load_sample_filters', [$this, 'handle_load_samples']);
-        add_action('admin_post_hlm_export_filters', [$this, 'handle_export']);
-        add_action('admin_post_hlm_import_filters', [$this, 'handle_import']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
@@ -149,34 +147,6 @@ final class FiltersBuilderPage
             'samples_loaded' => 'true',
             'template_name' => rawurlencode($templates[$template]['name']),
         ], admin_url('admin.php')));
-        exit;
-    }
-
-    public function handle_export(): void
-    {
-        if (!current_user_can('manage_woocommerce')) {
-            wp_die(__('You do not have permission to manage filters.', 'hlm-smart-product-filters'));
-        }
-
-        check_admin_referer('hlm_export_filters');
-
-        $config = $this->config->get();
-        $export_data = [
-            'version' => '1.0',
-            'plugin' => 'hlm-smart-product-filters',
-            'exported_at' => gmdate('Y-m-d H:i:s'),
-            'filters' => $config['filters'] ?? [],
-            'global' => $config['global'] ?? [],
-        ];
-
-        $filename = 'hlm-filters-' . gmdate('Y-m-d-His') . '.json';
-
-        header('Content-Type: application/json');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-
-        echo wp_json_encode($export_data, JSON_PRETTY_PRINT);
         exit;
     }
 
@@ -336,34 +306,6 @@ final class FiltersBuilderPage
         echo '</div>';
     }
 
-    private function render_import_export_section(): void
-    {
-        echo '<div class="hlm-import-export">';
-        echo '<h3>' . esc_html__('Import / Export', 'hlm-smart-product-filters') . '</h3>';
-        echo '<p class="description">' . esc_html__('Backup your filter configuration or transfer it to another site.', 'hlm-smart-product-filters') . '</p>';
-        echo '<div class="hlm-import-export-actions">';
-
-        // Export button
-        echo '<a class="button" href="' . esc_url(wp_nonce_url(admin_url('admin-post.php?action=hlm_export_filters'), 'hlm_export_filters')) . '">';
-        echo '<span class="dashicons dashicons-download"></span> ';
-        echo esc_html__('Export Filters', 'hlm-smart-product-filters');
-        echo '</a>';
-
-        // Import form
-        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" enctype="multipart/form-data" class="hlm-import-form">';
-        echo '<input type="hidden" name="action" value="hlm_import_filters">';
-        wp_nonce_field('hlm_import_filters');
-        echo '<label class="hlm-import-label">';
-        echo '<span class="dashicons dashicons-upload"></span> ';
-        echo '<span class="hlm-import-text">' . esc_html__('Import Filters', 'hlm-smart-product-filters') . '</span>';
-        echo '<input type="file" name="import_file" accept=".json" class="hlm-import-input">';
-        echo '</label>';
-        echo '<button type="submit" class="button hlm-import-submit" disabled>' . esc_html__('Upload', 'hlm-smart-product-filters') . '</button>';
-        echo '</form>';
-
-        echo '</div>';
-        echo '</div>';
-    }
 
     private function render_debug_section(): void
     {

@@ -206,6 +206,11 @@
 
     // Restore user-saved states
     restoreFilterCollapseStates();
+    
+    // Re-initialize event handlers after AJAX updates
+    $(document).on('hlm_filters_updated', function() {
+      restoreFilterCollapseStates();
+    });
   }
 
   function updateUrl($form) {
@@ -255,6 +260,9 @@
 
     // Restore Show More expanded state after replacing filters
     restoreShowMoreState(showMoreState);
+    
+    // Trigger custom event for re-initialization
+    $(document).trigger('hlm_filters_updated');
   }
 
   function setPage($form, page) {
@@ -476,11 +484,11 @@
   }
 
   $(document)
-    .on('submit', handleSubmit)
+    .on('submit', 'form.hlm-filters', handleSubmit)
     .on('click', handlePaginationClick)
     .on('click', handleShowMore)
     .on('click', '.hlm-filter-toggle', handleFilterToggle)
-    .on('change', handleAutoApply)
+    .on('change', 'form.hlm-filters input[type="checkbox"], form.hlm-filters select', handleAutoApply)
     .on('keydown', '.hlm-swatch-list input, .hlm-filter-list input', handleSwatchKeyboard)
     .on('error', '.hlm-swatch-image', handleImageError);
 

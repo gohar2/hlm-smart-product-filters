@@ -97,30 +97,30 @@ final class SettingsPage
             '__return_false',
             'hlm_filters_settings'
         );
-        $this->add_color_field('ui][accent_color', __('Accent color', 'hlm-smart-product-filters'));
-        $this->add_color_field('ui][background_color', __('Background color', 'hlm-smart-product-filters'));
-        $this->add_color_field('ui][text_color', __('Text color', 'hlm-smart-product-filters'));
-        $this->add_color_field('ui][border_color', __('Border color', 'hlm-smart-product-filters'));
-        $this->add_color_field('ui][muted_text_color', __('Muted text color', 'hlm-smart-product-filters'));
-        $this->add_color_field('ui][panel_gradient', __('Panel background', 'hlm-smart-product-filters'));
-        $this->add_text_field('ui][radius', __('Corner radius (px)', 'hlm-smart-product-filters'));
-        $this->add_text_field('ui][spacing', __('Vertical spacing (px)', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][accent_color', __('Accent color', 'hlm-smart-product-filters'), __('Primary color for buttons, links, and accents', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][background_color', __('Background color', 'hlm-smart-product-filters'), __('Main background color of the filter panel', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][text_color', __('Text color', 'hlm-smart-product-filters'), __('Main text color for filter labels and content', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][border_color', __('Border color', 'hlm-smart-product-filters'), __('Color for borders around filter panels and elements', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][muted_text_color', __('Muted text color', 'hlm-smart-product-filters'), __('Color for secondary text like counts and hints', 'hlm-smart-product-filters'));
+        $this->add_color_field('ui][panel_gradient', __('Panel background gradient', 'hlm-smart-product-filters'), __('CSS gradient for filter panel backgrounds (e.g., linear-gradient(...))', 'hlm-smart-product-filters'));
+        $this->add_text_field('ui][radius', __('Corner radius (px)', 'hlm-smart-product-filters'), __('Border radius for rounded corners (default: 10px)', 'hlm-smart-product-filters'));
+        $this->add_text_field('ui][spacing', __('Vertical spacing (px)', 'hlm-smart-product-filters'), __('Base spacing unit used throughout filters (default: 12px)', 'hlm-smart-product-filters'));
         $this->add_select_field('ui][density', __('Density', 'hlm-smart-product-filters'), [
-            'compact' => __('Compact', 'hlm-smart-product-filters'),
-            'comfy' => __('Comfy', 'hlm-smart-product-filters'),
-            'airy' => __('Airy', 'hlm-smart-product-filters'),
-        ]);
+            'compact' => __('Compact - Tighter spacing for more filters', 'hlm-smart-product-filters'),
+            'comfy' => __('Comfy - Balanced spacing (recommended)', 'hlm-smart-product-filters'),
+            'airy' => __('Airy - More spacious layout', 'hlm-smart-product-filters'),
+        ], __('Controls the spacing density of filter elements', 'hlm-smart-product-filters'));
         $this->add_select_field('ui][header_style', __('Panel header style', 'hlm-smart-product-filters'), [
-            'pill' => __('Pill', 'hlm-smart-product-filters'),
-            'underline' => __('Underline', 'hlm-smart-product-filters'),
-            'plain' => __('Plain', 'hlm-smart-product-filters'),
-        ]);
+            'pill' => __('Pill - Rounded background badge', 'hlm-smart-product-filters'),
+            'underline' => __('Underline - Accent line below label', 'hlm-smart-product-filters'),
+            'plain' => __('Plain - No special styling', 'hlm-smart-product-filters'),
+        ], __('Visual style for filter panel headers/labels', 'hlm-smart-product-filters'));
         $this->add_select_field('ui][list_layout', __('Default list layout', 'hlm-smart-product-filters'), [
-            'stacked' => __('Stacked (new lines)', 'hlm-smart-product-filters'),
-            'inline' => __('Inline (same line)', 'hlm-smart-product-filters'),
-        ]);
-        $this->add_text_field('ui][font_scale', __('Font scale (%)', 'hlm-smart-product-filters'));
-        $this->add_text_field('ui][font_family', __('Font family', 'hlm-smart-product-filters'));
+            'stacked' => __('Stacked - Each item on a new line', 'hlm-smart-product-filters'),
+            'inline' => __('Inline - Items flow horizontally', 'hlm-smart-product-filters'),
+        ], __('Default layout for checkbox list filters (can be overridden per filter)', 'hlm-smart-product-filters'));
+        $this->add_text_field('ui][font_scale', __('Font scale (%)', 'hlm-smart-product-filters'), __('Font size multiplier (e.g., 100 = normal, 110 = 10% larger)', 'hlm-smart-product-filters'));
+        $this->add_text_field('ui][font_family', __('Font family', 'hlm-smart-product-filters'), __('CSS font-family value (e.g., "Arial, sans-serif" or "inherit")', 'hlm-smart-product-filters'));
     }
 
     public function sanitize_settings($input): array
@@ -165,12 +165,12 @@ final class SettingsPage
         );
     }
 
-    private function add_text_field(string $key, string $label): void
+    private function add_text_field(string $key, string $label, string $description = ''): void
     {
         add_settings_field(
             'hlm_filters_' . $key,
             $label,
-            function () use ($key) {
+            function () use ($key, $description) {
                 $config = $this->config->get();
                 $value = $this->get_nested_value($config['global'], $key);
                 printf(
@@ -179,18 +179,21 @@ final class SettingsPage
                     esc_attr($key),
                     esc_attr((string) $value)
                 );
+                if ($description) {
+                    printf('<p class="description">%s</p>', esc_html($description));
+                }
             },
             'hlm_filters_settings',
             $this->field_section($key)
         );
     }
 
-    private function add_select_field(string $key, string $label, array $options): void
+    private function add_select_field(string $key, string $label, array $options, string $description = ''): void
     {
         add_settings_field(
             'hlm_filters_' . $key,
             $label,
-            function () use ($key, $options) {
+            function () use ($key, $options, $description) {
                 $config = $this->config->get();
                 $value = $this->get_nested_value($config['global'], $key);
                 echo '<select name="' . esc_attr(Config::OPTION_KEY) . '[global][' . esc_attr($key) . ']">';
@@ -203,18 +206,21 @@ final class SettingsPage
                     );
                 }
                 echo '</select>';
+                if ($description) {
+                    printf('<p class="description">%s</p>', esc_html($description));
+                }
             },
             'hlm_filters_settings',
             $this->field_section($key)
         );
     }
 
-    private function add_color_field(string $key, string $label): void
+    private function add_color_field(string $key, string $label, string $description = ''): void
     {
         add_settings_field(
             'hlm_filters_' . $key,
             $label,
-            function () use ($key) {
+            function () use ($key, $description) {
                 $config = $this->config->get();
                 $value = $this->get_nested_value($config['global'], $key);
                 printf(
@@ -223,6 +229,9 @@ final class SettingsPage
                     esc_attr($key),
                     esc_attr((string) $value)
                 );
+                if ($description) {
+                    printf('<p class="description">%s</p>', esc_html($description));
+                }
             },
             'hlm_filters_settings',
             'hlm_filters_ui'

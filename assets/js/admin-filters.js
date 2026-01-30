@@ -139,24 +139,49 @@
       if (!$idInput.val()) {
         $idInput.val(normalizeKey(value));
       }
+      // Auto-fill advanced fields if they're visible
+      var $advanced = $row.find('.hlm-filter-advanced');
+      if (!$advanced.hasClass('is-hidden')) {
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(value));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(value));
+        }
+      }
     } else if (value === 'custom') {
       $dataSource.val('taxonomy');
       $customField.removeClass('is-hidden');
+      // Auto-fill from custom input if it has a value
       if ($customInput.val()) {
         $sourceKey.val($customInput.val());
-        // Auto-fill from custom input
+        // Auto-fill label, key, id from custom input
+        var customValue = $customInput.val();
         if (!$labelInput.val()) {
-          var customLabel = $customInput.val().replace(/^pa_/, '').replace(/_/g, ' ');
+          var customLabel = customValue.replace(/^pa_/, '').replace(/_/g, ' ');
           customLabel = customLabel.charAt(0).toUpperCase() + customLabel.slice(1);
           $labelInput.val(customLabel);
           $row.find('.hlm-filter-title-text').text(customLabel);
         }
         if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey($customInput.val()));
+          $keyInput.val(normalizeKey(customValue));
         }
         if (!$idInput.val()) {
-          $idInput.val(normalizeKey($customInput.val()));
+          $idInput.val(normalizeKey(customValue));
         }
+        // Auto-fill advanced fields if they're visible
+        var $advanced = $row.find('.hlm-filter-advanced');
+        if (!$advanced.hasClass('is-hidden')) {
+          if (!$keyInput.val()) {
+            $keyInput.val(normalizeKey(customValue));
+          }
+          if (!$idInput.val()) {
+            $idInput.val(normalizeKey(customValue));
+          }
+        }
+      } else {
+        // Clear source key if custom input is empty
+        $sourceKey.val('');
       }
     } else {
       // Attribute selected
@@ -174,6 +199,25 @@
       }
       if (!$idInput.val()) {
         $idInput.val(normalizeKey(value));
+      }
+      // Auto-fill advanced fields if they're visible
+      var $advanced = $row.find('.hlm-filter-advanced');
+      if (!$advanced.hasClass('is-hidden')) {
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(value));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(value));
+        }
+      }
+      var $advanced = $row.find('.hlm-filter-advanced');
+      if (!$advanced.hasClass('is-hidden')) {
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(value));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(value));
+        }
       }
     }
 
@@ -479,7 +523,7 @@
       renderPreview();
     });
 
-    $(document).on('input', '[name*=\"[custom_source]\"]', function () {
+    $(document).on('input', '[name*="[custom_source]"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
       var customValue = $(this).val();
       $row.find('.hlm-source-key').val(customValue);
@@ -507,6 +551,7 @@
       }
 
       updateSourcePickerFromFields($row);
+      renderPreview();
     });
 
     $(document).on('change', '.hlm-source-key', function () {
