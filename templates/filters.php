@@ -14,28 +14,12 @@ $ui_layout_orientation = isset($ui_layout_orientation) ? (string) $ui_layout_ori
 $ui_list_layout = isset($ui_list_layout) ? (string) $ui_list_layout : 'stacked';
 ?>
 <div class="hlm-filters-wrap" role="region" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>" data-list-layout="<?php echo esc_attr($ui_list_layout); ?>">
-<!-- Mobile toggle button -->
-<button type="button" class="hlm-mobile-toggle" aria-expanded="false" aria-controls="hlm-drawer">
-    <span class="dashicons dashicons-filter"></span>
-    <span><?php echo esc_html__('Filters', 'hlm-smart-product-filters'); ?></span>
-</button>
-
-<!-- Drawer backdrop -->
-<div class="hlm-drawer-backdrop" aria-hidden="true"></div>
-
-<!-- Drawer container -->
-<div id="hlm-drawer" class="hlm-drawer" role="dialog" aria-modal="true" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>">
-<div class="hlm-drawer-header">
-    <h2><?php echo esc_html__('Filters', 'hlm-smart-product-filters'); ?></h2>
-    <button type="button" class="hlm-drawer-close" aria-label="<?php echo esc_attr__('Close filters', 'hlm-smart-product-filters'); ?>">
-        <span class="dashicons dashicons-no-alt"></span>
-    </button>
-</div>
-<div class="hlm-drawer-content">
 
 <!-- Live region for screen reader announcements -->
 <div id="hlm-live-region" class="hlm-sr-only" aria-live="polite" aria-atomic="true"></div>
-<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true" style="display:none">
+
+<!-- Loading overlay -->
+<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true">
     <div class="hlm-filters-loading-inner" role="alert" aria-busy="true">
         <svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
             <defs>
@@ -53,6 +37,7 @@ $ui_list_layout = isset($ui_list_layout) ? (string) $ui_list_layout : 'stacked';
         </div>
     </div>
 </div>
+
 <form class="hlm-filters<?php echo $ui_layout_orientation === 'horizontal' ? ' hlm-filters--horizontal' : ''; ?>" method="get" action="<?php echo esc_url($current_url); ?>" data-results=".products" data-pagination=".woocommerce-pagination" data-result-count=".woocommerce-result-count" aria-live="polite">
     <?php if ($search !== '') : ?>
         <input type="hidden" name="s" value="<?php echo esc_attr($search); ?>">
@@ -88,7 +73,7 @@ $ui_list_layout = isset($ui_list_layout) ? (string) $ui_list_layout : 'stacked';
             ?>
             <?php $list_id = 'hlm-filter-' . esc_attr($filter['key']); ?>
             <?php $body_id = $list_id . '-body'; ?>
-            <fieldset class="hlm-filter hlm-collapsible" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>" data-filter-key="<?php echo esc_attr($filter['key']); ?>">
+            <fieldset class="hlm-filter hlm-collapsible" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-filter-key="<?php echo esc_attr($filter['key']); ?>">
                 <legend id="<?php echo esc_attr($list_id . '-label'); ?>">
                     <button type="button" class="hlm-filter-toggle" aria-expanded="true" aria-controls="<?php echo esc_attr($body_id); ?>">
                         <span class="hlm-filter-toggle-text"><?php echo esc_html($filter['label']); ?></span>
@@ -195,9 +180,4 @@ $ui_list_layout = isset($ui_list_layout) ? (string) $ui_list_layout : 'stacked';
     </div>
 </form>
 
-</div><!-- .hlm-drawer-content -->
-<div class="hlm-drawer-footer">
-    <button type="button" class="hlm-drawer-apply"><?php echo esc_html__('Show Results', 'hlm-smart-product-filters'); ?></button>
-</div>
-</div><!-- .hlm-drawer -->
 </div><!-- .hlm-filters-wrap -->

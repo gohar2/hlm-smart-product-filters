@@ -20,7 +20,10 @@ final class Assets
 
     public function enqueue(): void
     {
-        if (!is_singular() && !is_product_category() && !is_product_tag() && !is_shop()) {
+        // Load on WooCommerce pages and any page that might have the shortcode
+        $should_load = is_product_category() || is_product_tag() || is_shop() || is_page() || is_singular('product');
+
+        if (!$should_load) {
             return;
         }
 

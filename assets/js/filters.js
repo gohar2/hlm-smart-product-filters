@@ -486,65 +486,6 @@
 
   $(window).on('popstate', handlePopState);
 
-  // Mobile Drawer functionality
-  function openDrawer() {
-    var $drawer = $('.hlm-drawer');
-    var $backdrop = $('.hlm-drawer-backdrop');
-    var $toggle = $('.hlm-mobile-toggle');
-
-    $drawer.addClass('is-open');
-    $backdrop.addClass('is-active');
-    $toggle.attr('aria-expanded', 'true');
-    $('body').addClass('hlm-drawer-open');
-
-    // Focus trap - focus first focusable element in drawer
-    setTimeout(function () {
-      $drawer.find('.hlm-drawer-close').focus();
-    }, 100);
-  }
-
-  function closeDrawer() {
-    var $drawer = $('.hlm-drawer');
-    var $backdrop = $('.hlm-drawer-backdrop');
-    var $toggle = $('.hlm-mobile-toggle');
-
-    $drawer.removeClass('is-open');
-    $backdrop.removeClass('is-active');
-    $toggle.attr('aria-expanded', 'false');
-    $('body').removeClass('hlm-drawer-open');
-
-    // Return focus to toggle button
-    $toggle.focus();
-  }
-
-  function handleDrawerToggle(event) {
-    event.preventDefault();
-    var $drawer = $('.hlm-drawer');
-    if ($drawer.hasClass('is-open')) {
-      closeDrawer();
-    } else {
-      openDrawer();
-    }
-  }
-
-  function handleDrawerApply() {
-    closeDrawer();
-  }
-
-  function handleDrawerEscape(event) {
-    if (event.key === 'Escape' && $('.hlm-drawer').hasClass('is-open')) {
-      closeDrawer();
-    }
-  }
-
-  // Mobile drawer event handlers
-  $(document)
-    .on('click', '.hlm-mobile-toggle', handleDrawerToggle)
-    .on('click', '.hlm-drawer-close', closeDrawer)
-    .on('click', '.hlm-drawer-backdrop', closeDrawer)
-    .on('click', '.hlm-drawer-apply', handleDrawerApply)
-    .on('keydown', handleDrawerEscape);
-
   // Initialize collapsible on DOM ready
   $(function () {
     initCollapsible();
