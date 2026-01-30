@@ -333,9 +333,6 @@ final class FiltersBuilderPage
         echo '</script>';
 
         echo '</form>';
-
-        $this->render_import_export_section();
-
         echo '</div>';
     }
 

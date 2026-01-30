@@ -11,8 +11,9 @@ $render_context = isset($render_context) ? (string) $render_context : 'shortcode
 $ui_density = isset($ui_density) ? (string) $ui_density : 'comfy';
 $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
 $ui_layout_orientation = isset($ui_layout_orientation) ? (string) $ui_layout_orientation : 'vertical';
+$ui_list_layout = isset($ui_list_layout) ? (string) $ui_list_layout : 'stacked';
 ?>
-<div class="hlm-filters-wrap" role="region" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>">
+<div class="hlm-filters-wrap" role="region" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>" data-list-layout="<?php echo esc_attr($ui_list_layout); ?>">
 <!-- Mobile toggle button -->
 <button type="button" class="hlm-mobile-toggle" aria-expanded="false" aria-controls="hlm-drawer">
     <span class="dashicons dashicons-filter"></span>
@@ -149,7 +150,13 @@ $ui_layout_orientation = isset($ui_layout_orientation) ? (string) $ui_layout_ori
                         <p class="hlm-empty"><?php echo esc_html__('No options available.', 'hlm-smart-product-filters'); ?></p>
                     <?php endif; ?>
                 <?php else : ?>
-                    <ul id="<?php echo esc_attr($list_id); ?>" class="hlm-filter-list<?php echo $layout === 'inline' ? ' is-inline' : ''; ?>">
+                    <?php
+                    $effective_layout = $layout;
+                    if ($effective_layout === 'inherit' || $effective_layout === '') {
+                        $effective_layout = $ui_list_layout;
+                    }
+                    ?>
+                    <ul id="<?php echo esc_attr($list_id); ?>" class="hlm-filter-list<?php echo $effective_layout === 'inline' ? ' is-inline' : ''; ?>">
                         <?php foreach ($filter['terms'] as $index => $term) : ?>
                             <?php $count = $filter['counts'][$term->term_id] ?? null; ?>
                             <?php $hidden = $threshold > 0 && $index >= $threshold ? ' data-hlm-hidden="true"' : ''; ?>

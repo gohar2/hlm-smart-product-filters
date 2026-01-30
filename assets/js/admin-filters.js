@@ -110,32 +110,73 @@
     var $customInput = $row.find('[name*="[custom_source]"]');
     var $dataSource = $row.find('.hlm-data-source');
     var $sourceKey = $row.find('.hlm-source-key');
+    var $labelInput = $row.find('[name*="[label]"]');
+    var $keyInput = $row.find('[name*="[key]"]');
+    var $idInput = $row.find('[name*="[id]"]');
+    var $sourcePicker = $row.find('.hlm-source-picker');
+
     if (!value) {
       $customField.addClass('is-hidden');
       return;
     }
+
+    // Get the display text from the selected option
+    var displayLabel = $sourcePicker.find('option:selected').text().trim();
+
     if (value === 'product_cat' || value === 'product_tag') {
       $dataSource.val(value);
       $sourceKey.val(value);
       $customField.addClass('is-hidden');
-    } else {
-      if (value === 'custom') {
-        $dataSource.val('taxonomy');
-        $customField.removeClass('is-hidden');
-        if ($customInput.val()) {
-          $sourceKey.val($customInput.val());
+
+      // Auto-fill label, key, id if empty
+      if (!$labelInput.val()) {
+        $labelInput.val(displayLabel);
+        $row.find('.hlm-filter-title-text').text(displayLabel);
+      }
+      if (!$keyInput.val()) {
+        $keyInput.val(normalizeKey(value));
+      }
+      if (!$idInput.val()) {
+        $idInput.val(normalizeKey(value));
+      }
+    } else if (value === 'custom') {
+      $dataSource.val('taxonomy');
+      $customField.removeClass('is-hidden');
+      if ($customInput.val()) {
+        $sourceKey.val($customInput.val());
+        // Auto-fill from custom input
+        if (!$labelInput.val()) {
+          var customLabel = $customInput.val().replace(/^pa_/, '').replace(/_/g, ' ');
+          customLabel = customLabel.charAt(0).toUpperCase() + customLabel.slice(1);
+          $labelInput.val(customLabel);
+          $row.find('.hlm-filter-title-text').text(customLabel);
         }
-      } else {
-        $dataSource.val('attribute');
-        $sourceKey.val(value);
-        $customField.addClass('is-hidden');
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey($customInput.val()));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey($customInput.val()));
+        }
+      }
+    } else {
+      // Attribute selected
+      $dataSource.val('attribute');
+      $sourceKey.val(value);
+      $customField.addClass('is-hidden');
+
+      // Auto-fill label, key, id if empty
+      if (!$labelInput.val()) {
+        $labelInput.val(displayLabel);
+        $row.find('.hlm-filter-title-text').text(displayLabel);
+      }
+      if (!$keyInput.val()) {
+        $keyInput.val(normalizeKey(value));
+      }
+      if (!$idInput.val()) {
+        $idInput.val(normalizeKey(value));
       }
     }
 
-    var keyInput = $row.find('[name*="[key]"]');
-    if (!keyInput.val() && value !== 'custom') {
-      keyInput.val(normalizeKey(value));
-    }
     applyAutoValues($row);
     $dataSource.trigger('change');
     $sourceKey.trigger('change');
@@ -440,8 +481,31 @@
 
     $(document).on('input', '[name*=\"[custom_source]\"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      $row.find('.hlm-source-key').val($(this).val());
+      var customValue = $(this).val();
+      $row.find('.hlm-source-key').val(customValue);
       $row.find('.hlm-data-source').val('taxonomy');
+
+      // Auto-fill label, key, id from custom source
+      var $labelInput = $row.find('[name*="[label]"]');
+      var $keyInput = $row.find('[name*="[key]"]');
+      var $idInput = $row.find('[name*="[id]"]');
+
+      if (customValue) {
+        var cleanLabel = customValue.replace(/^pa_/, '').replace(/_/g, ' ');
+        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+
+        if (!$labelInput.val()) {
+          $labelInput.val(cleanLabel);
+          $row.find('.hlm-filter-title-text').text(cleanLabel);
+        }
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(customValue));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(customValue));
+        }
+      }
+
       updateSourcePickerFromFields($row);
     });
 

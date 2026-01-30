@@ -151,6 +151,7 @@ final class Shortcode
             'ui_density' => $config['global']['ui']['density'] ?? 'comfy',
             'ui_header_style' => $config['global']['ui']['header_style'] ?? 'pill',
             'ui_layout_orientation' => $config['global']['ui']['layout_orientation'] ?? 'vertical',
+            'ui_list_layout' => $config['global']['ui']['list_layout'] ?? 'stacked',
             'orderby' => $sort_value,
             'search' => (string) ($request['search'] ?? ''),
         ]);
