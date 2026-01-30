@@ -58,9 +58,12 @@ final class FiltersBuilderPage
             true
         );
 
+        $this->load_data();
         wp_localize_script('hlm-filters-admin', 'HLMFiltersAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('hlm_filters_admin_nonce'),
+            'categories' => $this->categories,
+            'tags' => $this->tags,
         ]);
     }
 
@@ -778,13 +781,17 @@ final class FiltersBuilderPage
         $safe_id = 'hlm-multi-' . esc_attr($index) . '-' . preg_replace('/[^a-z0-9_-]+/i', '-', $name);
         echo '<label class="hlm-filter-field">' . esc_html($label);
         echo '<select id="' . esc_attr($safe_id) . '" name="filters[' . esc_attr($index) . '][' . esc_attr($name) . '][]" multiple size="6">';
-        foreach ($options as $id => $title) {
-            printf(
-                '<option value="%s" %s>%s</option>',
-                esc_attr((string) $id),
-                selected(in_array((int) $id, $selected, true), true, false),
-                esc_html($title)
-            );
+        if (empty($options)) {
+            echo '<option value="" disabled>' . esc_html__('No options available', 'hlm-smart-product-filters') . '</option>';
+        } else {
+            foreach ($options as $id => $title) {
+                printf(
+                    '<option value="%s" %s>%s</option>',
+                    esc_attr((string) $id),
+                    selected(in_array((int) $id, $selected, true), true, false),
+                    esc_html($title)
+                );
+            }
         }
         echo '</select>';
         echo '<span class="hlm-multi-actions">';
@@ -855,16 +862,29 @@ final class FiltersBuilderPage
 
     private function term_options(string $taxonomy): array
     {
+        if (!taxonomy_exists($taxonomy)) {
+            return [];
+        }
+        
         $terms = get_terms([
             'taxonomy' => $taxonomy,
             'hide_empty' => false,
+            'number' => 0, // Get all terms
         ]);
-        if (is_wp_error($terms) || !is_array($terms)) {
+        
+        if (is_wp_error($terms)) {
             return [];
         }
+        
+        if (!is_array($terms) || empty($terms)) {
+            return [];
+        }
+        
         $options = [];
         foreach ($terms as $term) {
-            $options[(int) $term->term_id] = $term->name;
+            if (isset($term->term_id) && isset($term->name)) {
+                $options[(int) $term->term_id] = $term->name;
+            }
         }
         return $options;
     }

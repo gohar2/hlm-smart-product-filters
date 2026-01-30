@@ -12,7 +12,7 @@ $ui_density = isset($ui_density) ? (string) $ui_density : 'comfy';
 $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
 ?>
 <div class="hlm-filters-wrap" role="region" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>">
-<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true" style="display:none">
+<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true">
     <div class="hlm-filters-loading-inner" role="alert" aria-busy="true">
         <svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
             <defs>

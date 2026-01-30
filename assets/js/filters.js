@@ -305,7 +305,12 @@
   }
 
   function toggleLoading($form, isLoading) {
-    var $overlay = getGlobalOverlay();
+    var $wrap = $form.closest('.hlm-filters-wrap');
+    var $overlay = $wrap.find('.hlm-filters-loading').first();
+    
+    if (!$overlay.length) {
+      $overlay = getGlobalOverlay();
+    }
 
     if (isLoading) {
       $form.attr('aria-busy', 'true').addClass('is-loading');
@@ -322,8 +327,8 @@
   }
 
   function handleSubmit(event) {
-    var $form = $(event.target);
-    if (!$form.hasClass('hlm-filters')) {
+    var $form = $(event.target).closest('form.hlm-filters');
+    if (!$form.length || !$form.hasClass('hlm-filters')) {
       return;
     }
 
@@ -332,6 +337,7 @@
     }
 
     event.preventDefault();
+    event.stopPropagation();
 
     // Abort any in-flight request to prevent race conditions
     if (currentRequest && currentRequest.readyState !== 4) {
@@ -497,5 +503,18 @@
   // Initialize collapsible on DOM ready
   $(function () {
     initCollapsible();
+    
+    // Ensure AJAX handlers are properly attached
+    if (window.HLMFilters && window.HLMFilters.enableAjax) {
+      // Make sure form submission is intercepted - use namespace to avoid conflicts
+      $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
+    }
+  });
+  
+  // Also attach on document ready for dynamically added forms
+  $(document).ready(function() {
+    if (window.HLMFilters && window.HLMFilters.enableAjax) {
+      $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
+    }
   });
 })(jQuery);

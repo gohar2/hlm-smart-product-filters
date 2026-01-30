@@ -12,18 +12,18 @@
   --hlm-spacing: 12px;
   --hlm-font: inherit;
   --hlm-z-index: 9999;
-  font-family: var(--hlm-font);
-  font-size: var(--hlm-font-scale);
-  color: var(--hlm-text);
+  font-family: var(--hlm-font) !important;
+  font-size: var(--hlm-font-scale) !important;
+  color: var(--hlm-text) !important;
 }
 
 .hlm-filters {
-  display: grid;
-  gap: calc(var(--hlm-spacing) * 1.2);
-  background: var(--hlm-bg);
-  border: 1px solid var(--hlm-border);
-  border-radius: var(--hlm-radius);
-  padding: calc(var(--hlm-spacing) * 1.4);
+  display: grid !important;
+  gap: calc(var(--hlm-spacing) * 1.2) !important;
+  background: var(--hlm-bg) !important;
+  border: 1px solid var(--hlm-border) !important;
+  border-radius: var(--hlm-radius) !important;
+  padding: calc(var(--hlm-spacing) * 1.4) !important;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
 }
 
@@ -113,10 +113,10 @@
 }
 
 .hlm-filter {
-  border: 1px solid var(--hlm-border);
-  border-radius: calc(var(--hlm-radius) - 2px);
-  padding: calc(var(--hlm-spacing) * 1.1);
-  background: var(--hlm-panel-gradient);
+  border: 1px solid var(--hlm-border) !important;
+  border-radius: calc(var(--hlm-radius) - 2px) !important;
+  padding: calc(var(--hlm-spacing) * 1.1) !important;
+  background: var(--hlm-panel-gradient) !important;
   margin-bottom: calc(var(--hlm-spacing) * 0.6);
 }
 
@@ -125,6 +125,7 @@
   letter-spacing: 0.01em;
   margin-bottom: calc(var(--hlm-spacing) * 0.6);
   width: 100%;
+  color: var(--hlm-text) !important;
 }
 
 /* Collapsible filter panels */
@@ -321,6 +322,7 @@
   transition: background-color 0.15s ease;
   cursor: pointer;
   min-height: 36px;
+  color: var(--hlm-text) !important;
 }
 
 .hlm-filter ul.hlm-filter-list label:hover {
@@ -416,25 +418,26 @@
 }
 
 .hlm-filter-actions button {
-  background: var(--hlm-accent);
-  color: #fff;
-  border-color: var(--hlm-accent);
+  background: var(--hlm-accent) !important;
+  color: #fff !important;
+  border-color: var(--hlm-accent) !important;
+  cursor: pointer;
 }
 
 .hlm-filter-actions button:hover {
-  background: color-mix(in srgb, var(--hlm-accent) 90%, black);
-  border-color: color-mix(in srgb, var(--hlm-accent) 90%, black);
+  opacity: 0.9;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .hlm-filter-actions a {
-  color: var(--hlm-text);
+  color: var(--hlm-text) !important;
   background: transparent;
+  text-decoration: none;
 }
 
 .hlm-filter-actions a:hover {
-  color: var(--hlm-accent);
+  color: var(--hlm-accent) !important;
   text-decoration: underline;
 }
 
@@ -450,12 +453,15 @@
   gap: 8px;
   font-weight: 600;
   font-size: 0.9em;
+  color: var(--hlm-text) !important;
 }
 
 .hlm-filter-sort select {
-  background: #fff;
+  background: #fff !important;
   padding: 10px 14px;
   font-size: 0.95em;
+  color: var(--hlm-text) !important;
+  border-color: var(--hlm-border) !important;
 }
 
 .hlm-count {
@@ -522,6 +528,7 @@
 
 .hlm-swatch-label {
   font-weight: 500;
+  color: var(--hlm-text) !important;
 }
 
 .hlm-filter [data-hlm-hidden="true"] {
@@ -529,9 +536,9 @@
 }
 
 .hlm-show-more {
-  background: none;
-  border: none;
-  color: var(--hlm-accent);
+  background: none !important;
+  border: none !important;
+  color: var(--hlm-accent) !important;
   font-weight: 600;
   padding: 8px 0;
   margin-top: 6px;
