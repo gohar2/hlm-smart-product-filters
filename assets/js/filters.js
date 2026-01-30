@@ -1,6 +1,211 @@
 (function ($) {
+  // Store current AJAX request for abort functionality
+  var currentRequest = null;
+  // Debounce timer for checkbox changes
+  var debounceTimer = null;
+  var DEBOUNCE_DELAY = 120;
+
   function serializeForm($form) {
     return $form.serialize();
+  }
+
+  // Save expanded Show More states before AJAX replacement
+  function saveShowMoreState() {
+    var state = {};
+    $('.hlm-show-more').each(function () {
+      var $btn = $(this);
+      var $fieldset = $btn.closest('.hlm-filter');
+      var filterKey = $fieldset.find('input, select').first().attr('name');
+      if (filterKey) {
+        state[filterKey] = $btn.data('expanded') === true;
+      }
+    });
+    return state;
+  }
+
+  // Restore expanded Show More states after AJAX replacement
+  function restoreShowMoreState(state) {
+    if (!state || Object.keys(state).length === 0) return;
+
+    $('.hlm-filter').each(function () {
+      var $fieldset = $(this);
+      var filterKey = $fieldset.find('input, select').first().attr('name');
+      if (filterKey && state[filterKey] === true) {
+        var $btn = $fieldset.find('.hlm-show-more');
+        if ($btn.length && $btn.data('expanded') !== true) {
+          $btn.trigger('click');
+        }
+      }
+    });
+  }
+
+  // Show error message to user
+  function showError(message) {
+    var $wrap = $('.hlm-filters-wrap').first();
+    if (!$wrap.length) return;
+
+    // Remove existing error
+    $wrap.find('.hlm-error-notice').remove();
+
+    var errorMsg = message || (window.HLMFilters && window.HLMFilters.errorMessage) || 'Unable to load results. Please try again.';
+    var $error = $('<div class="hlm-error-notice" role="alert"></div>').text(errorMsg);
+    $wrap.prepend($error);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(function () {
+      $error.fadeOut(300, function () {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  // Announce results to screen readers
+  function announceResults(total) {
+    var $liveRegion = $('#hlm-live-region');
+    if (!$liveRegion.length) {
+      $liveRegion = $('<div id="hlm-live-region" class="hlm-sr-only" aria-live="polite" aria-atomic="true"></div>');
+      $('.hlm-filters-wrap').first().prepend($liveRegion);
+    }
+
+    var message;
+    if (total === 0) {
+      message = window.HLMFilters && window.HLMFilters.noResultsText
+        ? window.HLMFilters.noResultsText
+        : 'No products found';
+    } else if (total === 1) {
+      message = window.HLMFilters && window.HLMFilters.oneProductText
+        ? window.HLMFilters.oneProductText
+        : '1 product found';
+    } else {
+      message = window.HLMFilters && window.HLMFilters.productsFoundText
+        ? window.HLMFilters.productsFoundText.replace('%d', total)
+        : total + ' products found';
+    }
+
+    $liveRegion.text(message);
+  }
+
+  // Handle image fallback for broken swatch images
+  function handleImageError(event) {
+    var $img = $(event.target);
+    if (!$img.hasClass('hlm-swatch-image')) return;
+
+    var fallback = $img.data('fallback') || '?';
+    $img.removeClass('hlm-swatch-image')
+        .addClass('hlm-swatch-text')
+        .removeAttr('style')
+        .text(fallback);
+  }
+
+  // Keyboard navigation for swatch grids
+  function handleSwatchKeyboard(event) {
+    var $target = $(event.target);
+    if (!$target.is('.hlm-swatch input, .hlm-swatch-list input')) return;
+
+    var $list = $target.closest('.hlm-swatch-list, .hlm-filter-list');
+    var $inputs = $list.find('input:visible');
+    var currentIndex = $inputs.index($target);
+
+    if (currentIndex === -1) return;
+
+    var newIndex = currentIndex;
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        newIndex = (currentIndex + 1) % $inputs.length;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        newIndex = (currentIndex - 1 + $inputs.length) % $inputs.length;
+        break;
+      default:
+        return;
+    }
+
+    $inputs.eq(newIndex).focus();
+  }
+
+  // Handle collapsible filter panels
+  function handleFilterToggle(event) {
+    var $button = $(event.target).closest('.hlm-filter-toggle');
+    if (!$button.length) return;
+
+    event.preventDefault();
+
+    var isExpanded = $button.attr('aria-expanded') === 'true';
+    var $body = $button.parent().next('.hlm-filter-body');
+
+    // Mark as user-expanded to override mobile default
+    $button.addClass('hlm-user-expanded');
+
+    if (isExpanded) {
+      $button.attr('aria-expanded', 'false');
+      $body.slideUp(200);
+    } else {
+      $button.attr('aria-expanded', 'true');
+      $body.slideDown(200);
+    }
+
+    // Save state to localStorage
+    var filterKey = $button.closest('.hlm-filter').data('filter-key');
+    if (filterKey) {
+      saveFilterCollapseState(filterKey, !isExpanded);
+    }
+  }
+
+  // Save/restore filter collapse state
+  function saveFilterCollapseState(key, isExpanded) {
+    try {
+      var state = JSON.parse(localStorage.getItem('hlm_filter_state') || '{}');
+      state[key] = isExpanded;
+      localStorage.setItem('hlm_filter_state', JSON.stringify(state));
+    } catch (e) {
+      // localStorage not available
+    }
+  }
+
+  function restoreFilterCollapseStates() {
+    try {
+      var state = JSON.parse(localStorage.getItem('hlm_filter_state') || '{}');
+      $('.hlm-filter-toggle').each(function () {
+        var $button = $(this);
+        var filterKey = $button.closest('.hlm-filter').data('filter-key');
+        if (filterKey && state[filterKey] !== undefined) {
+          $button.addClass('hlm-user-expanded');
+          if (state[filterKey]) {
+            $button.attr('aria-expanded', 'true');
+            $button.parent().next('.hlm-filter-body').show();
+          } else {
+            $button.attr('aria-expanded', 'false');
+            $button.parent().next('.hlm-filter-body').hide();
+          }
+        }
+      });
+    } catch (e) {
+      // localStorage not available
+    }
+  }
+
+  // Initialize on page load
+  function initCollapsible() {
+    // Check if mobile (coarse pointer)
+    var isMobile = window.matchMedia('(pointer: coarse)').matches;
+
+    if (isMobile) {
+      // Collapse all filters by default on mobile (unless user has saved state)
+      $('.hlm-filter-toggle').each(function () {
+        var $button = $(this);
+        if (!$button.hasClass('hlm-user-expanded')) {
+          $button.attr('aria-expanded', 'false');
+          $button.parent().next('.hlm-filter-body').hide();
+        }
+      });
+    }
+
+    // Restore user-saved states
+    restoreFilterCollapseStates();
   }
 
   function updateUrl($form) {
@@ -18,6 +223,9 @@
     var $pagination = $(paginationSelector).first();
     var $resultCount = $(resultCountSelector).first();
     var $filtersWrap = $('.hlm-filters-wrap').first();
+
+    // Save Show More expanded state before replacing filters
+    var showMoreState = saveShowMoreState();
 
     if ($results.length && payload.html !== undefined) {
       $results.html(payload.html);
@@ -44,6 +252,9 @@
         $results.before(payload.result_count);
       }
     }
+
+    // Restore Show More expanded state after replacing filters
+    restoreShowMoreState(showMoreState);
   }
 
   function setPage($form, page) {
@@ -78,7 +289,7 @@
       display: 'none',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 100000
+      zIndex: 9999
     });
 
     $('body').append($overlay);
@@ -89,14 +300,14 @@
     var $overlay = getGlobalOverlay();
 
     if (isLoading) {
-      $form.attr('aria-busy', 'true');
+      $form.attr('aria-busy', 'true').addClass('is-loading');
       $overlay.addClass('is-active').attr('aria-hidden', 'false').css('display', 'flex');
       var resultSelector = $form.data('results') || '.products';
       $(resultSelector).first().attr('aria-busy', 'true');
       return;
     }
 
-    $form.removeAttr('aria-busy');
+    $form.removeAttr('aria-busy').removeClass('is-loading');
     $overlay.removeClass('is-active').attr('aria-hidden', 'true').css('display', 'none');
     var resultSelector = $form.data('results') || '.products';
     $(resultSelector).first().removeAttr('aria-busy');
@@ -113,9 +324,15 @@
     }
 
     event.preventDefault();
+
+    // Abort any in-flight request to prevent race conditions
+    if (currentRequest && currentRequest.readyState !== 4) {
+      currentRequest.abort();
+    }
+
     toggleLoading($form, true);
 
-    $.ajax({
+    currentRequest = $.ajax({
       url: window.HLMFilters.ajaxUrl,
       method: 'POST',
       dataType: 'json',
@@ -129,10 +346,26 @@
         if (response && response.success) {
           updateResults(response.data || {}, $form);
           updateUrl($form);
+          // Announce results to screen readers
+          var total = response.data && response.data.total !== undefined ? response.data.total : 0;
+          announceResults(total);
+        } else {
+          // Server returned error response
+          var errorMsg = (response && response.data && response.data.message) ? response.data.message : null;
+          showError(errorMsg);
         }
+      })
+      .fail(function (_xhr, status) {
+        // Skip error message for aborted requests
+        if (status === 'abort') {
+          return;
+        }
+        // Show user-friendly error message
+        showError();
       })
       .always(function () {
         toggleLoading($form, false);
+        currentRequest = null;
       });
   }
 
@@ -147,8 +380,17 @@
     if (window.HLMFilters.enableApply) {
       return;
     }
-    clearPage($form);
-    $form.trigger('submit');
+
+    // Debounce rapid checkbox clicks
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+
+    debounceTimer = setTimeout(function () {
+      clearPage($form);
+      $form.trigger('submit');
+      debounceTimer = null;
+    }, DEBOUNCE_DELAY);
   }
 
   function handleShowMore(event) {
@@ -237,7 +479,74 @@
     .on('submit', handleSubmit)
     .on('click', handlePaginationClick)
     .on('click', handleShowMore)
-    .on('change', handleAutoApply);
+    .on('click', '.hlm-filter-toggle', handleFilterToggle)
+    .on('change', handleAutoApply)
+    .on('keydown', '.hlm-swatch-list input, .hlm-filter-list input', handleSwatchKeyboard)
+    .on('error', '.hlm-swatch-image', handleImageError);
 
   $(window).on('popstate', handlePopState);
+
+  // Mobile Drawer functionality
+  function openDrawer() {
+    var $drawer = $('.hlm-drawer');
+    var $backdrop = $('.hlm-drawer-backdrop');
+    var $toggle = $('.hlm-mobile-toggle');
+
+    $drawer.addClass('is-open');
+    $backdrop.addClass('is-active');
+    $toggle.attr('aria-expanded', 'true');
+    $('body').addClass('hlm-drawer-open');
+
+    // Focus trap - focus first focusable element in drawer
+    setTimeout(function () {
+      $drawer.find('.hlm-drawer-close').focus();
+    }, 100);
+  }
+
+  function closeDrawer() {
+    var $drawer = $('.hlm-drawer');
+    var $backdrop = $('.hlm-drawer-backdrop');
+    var $toggle = $('.hlm-mobile-toggle');
+
+    $drawer.removeClass('is-open');
+    $backdrop.removeClass('is-active');
+    $toggle.attr('aria-expanded', 'false');
+    $('body').removeClass('hlm-drawer-open');
+
+    // Return focus to toggle button
+    $toggle.focus();
+  }
+
+  function handleDrawerToggle(event) {
+    event.preventDefault();
+    var $drawer = $('.hlm-drawer');
+    if ($drawer.hasClass('is-open')) {
+      closeDrawer();
+    } else {
+      openDrawer();
+    }
+  }
+
+  function handleDrawerApply() {
+    closeDrawer();
+  }
+
+  function handleDrawerEscape(event) {
+    if (event.key === 'Escape' && $('.hlm-drawer').hasClass('is-open')) {
+      closeDrawer();
+    }
+  }
+
+  // Mobile drawer event handlers
+  $(document)
+    .on('click', '.hlm-mobile-toggle', handleDrawerToggle)
+    .on('click', '.hlm-drawer-close', closeDrawer)
+    .on('click', '.hlm-drawer-backdrop', closeDrawer)
+    .on('click', '.hlm-drawer-apply', handleDrawerApply)
+    .on('keydown', handleDrawerEscape);
+
+  // Initialize collapsible on DOM ready
+  $(function () {
+    initCollapsible();
+  });
 })(jQuery);

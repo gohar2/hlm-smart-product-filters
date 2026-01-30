@@ -10,8 +10,30 @@ $tag_id = (int) ($context['tag_id'] ?? 0);
 $render_context = isset($render_context) ? (string) $render_context : 'shortcode';
 $ui_density = isset($ui_density) ? (string) $ui_density : 'comfy';
 $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
+$ui_layout_orientation = isset($ui_layout_orientation) ? (string) $ui_layout_orientation : 'vertical';
 ?>
 <div class="hlm-filters-wrap" role="region" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>">
+<!-- Mobile toggle button -->
+<button type="button" class="hlm-mobile-toggle" aria-expanded="false" aria-controls="hlm-drawer">
+    <span class="dashicons dashicons-filter"></span>
+    <span><?php echo esc_html__('Filters', 'hlm-smart-product-filters'); ?></span>
+</button>
+
+<!-- Drawer backdrop -->
+<div class="hlm-drawer-backdrop" aria-hidden="true"></div>
+
+<!-- Drawer container -->
+<div id="hlm-drawer" class="hlm-drawer" role="dialog" aria-modal="true" aria-label="<?php echo esc_attr__('Product filters', 'hlm-smart-product-filters'); ?>">
+<div class="hlm-drawer-header">
+    <h2><?php echo esc_html__('Filters', 'hlm-smart-product-filters'); ?></h2>
+    <button type="button" class="hlm-drawer-close" aria-label="<?php echo esc_attr__('Close filters', 'hlm-smart-product-filters'); ?>">
+        <span class="dashicons dashicons-no-alt"></span>
+    </button>
+</div>
+<div class="hlm-drawer-content">
+
+<!-- Live region for screen reader announcements -->
+<div id="hlm-live-region" class="hlm-sr-only" aria-live="polite" aria-atomic="true"></div>
 <div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true" style="display:none">
     <div class="hlm-filters-loading-inner" role="alert" aria-busy="true">
         <svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
@@ -30,7 +52,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
         </div>
     </div>
 </div>
-<form class="hlm-filters" method="get" action="<?php echo esc_url($current_url); ?>" data-results=".products" data-pagination=".woocommerce-pagination" data-result-count=".woocommerce-result-count" aria-live="polite">
+<form class="hlm-filters<?php echo $ui_layout_orientation === 'horizontal' ? ' hlm-filters--horizontal' : ''; ?>" method="get" action="<?php echo esc_url($current_url); ?>" data-results=".products" data-pagination=".woocommerce-pagination" data-result-count=".woocommerce-result-count" aria-live="polite">
     <?php if ($search !== '') : ?>
         <input type="hidden" name="s" value="<?php echo esc_attr($search); ?>">
     <?php endif; ?>
@@ -64,8 +86,15 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
             $layout = $filter['layout'] ?? 'stacked';
             ?>
             <?php $list_id = 'hlm-filter-' . esc_attr($filter['key']); ?>
-            <fieldset class="hlm-filter" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>">
-                <legend id="<?php echo esc_attr($list_id . '-label'); ?>"><?php echo esc_html($filter['label']); ?></legend>
+            <?php $body_id = $list_id . '-body'; ?>
+            <fieldset class="hlm-filter hlm-collapsible" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>" data-filter-key="<?php echo esc_attr($filter['key']); ?>">
+                <legend id="<?php echo esc_attr($list_id . '-label'); ?>">
+                    <button type="button" class="hlm-filter-toggle" aria-expanded="true" aria-controls="<?php echo esc_attr($body_id); ?>">
+                        <span class="hlm-filter-toggle-text"><?php echo esc_html($filter['label']); ?></span>
+                        <span class="hlm-filter-toggle-icon" aria-hidden="true"></span>
+                    </button>
+                </legend>
+                <div id="<?php echo esc_attr($body_id); ?>" class="hlm-filter-body">
                 <?php if ($style === 'dropdown') : ?>
                     <select name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][]" aria-label="<?php echo esc_attr($filter['label']); ?>" <?php echo !empty($filter['multi_select']) ? 'multiple' : ''; ?>>
                         <option value=""><?php echo esc_html__('Any', 'hlm-smart-product-filters'); ?></option>
@@ -101,11 +130,11 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                                 <label class="hlm-swatch">
                                     <input type="checkbox" name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][]" value="<?php echo esc_attr($term->slug); ?>" aria-label="<?php echo esc_attr($term->name); ?>" <?php checked(in_array($term->slug, $filter['selected'], true)); ?>>
                                     <?php if ($swatch_type === 'image' && $swatch !== '') : ?>
-                                        <span class="hlm-swatch-chip hlm-swatch-image" style="background-image:url('<?php echo esc_url($swatch); ?>');"></span>
+                                        <span class="hlm-swatch-chip hlm-swatch-image" style="background-image:url('<?php echo esc_url($swatch); ?>');" role="img" aria-label="<?php echo esc_attr(sprintf(__('%s swatch image', 'hlm-smart-product-filters'), $term->name)); ?>" data-fallback="<?php echo esc_attr(mb_substr($term->name, 0, 1)); ?>"></span>
                                     <?php elseif ($swatch_type === 'text' && $swatch !== '') : ?>
-                                        <span class="hlm-swatch-chip hlm-swatch-text"><?php echo esc_html($swatch); ?></span>
+                                        <span class="hlm-swatch-chip hlm-swatch-text" aria-hidden="true"><?php echo esc_html($swatch); ?></span>
                                     <?php else : ?>
-                                        <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch); ?>"></span>
+                                        <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch); ?>" role="img" aria-label="<?php echo esc_attr(sprintf(__('Color: %s', 'hlm-smart-product-filters'), $swatch ?: $term->name)); ?>"></span>
                                     <?php endif; ?>
                                     <span class="hlm-swatch-label"><?php echo esc_html($term->name); ?></span>
                                     <?php if (!empty($enable_counts) && $count !== null) : ?>
@@ -146,6 +175,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                         <?php echo esc_html__('Show more', 'hlm-smart-product-filters'); ?>
                     </button>
                 <?php endif; ?>
+                </div><!-- .hlm-filter-body -->
             </fieldset>
         <?php endforeach; ?>
     <?php endif; ?>
@@ -157,4 +187,10 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
         <a href="<?php echo esc_url($clear_url); ?>"><?php echo esc_html__('Clear All', 'hlm-smart-product-filters'); ?></a>
     </div>
 </form>
+
+</div><!-- .hlm-drawer-content -->
+<div class="hlm-drawer-footer">
+    <button type="button" class="hlm-drawer-apply"><?php echo esc_html__('Show Results', 'hlm-smart-product-filters'); ?></button>
 </div>
+</div><!-- .hlm-drawer -->
+</div><!-- .hlm-filters-wrap -->

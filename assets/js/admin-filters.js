@@ -47,22 +47,48 @@
       var $row = $(this);
       var label = $row.find('[name*="[label]"]').val() || 'Filter';
       var type = $row.find('[name*="[type]"]').val() || 'checkbox';
+      var dataSource = $row.find('[name*="[data_source]"]').val() || 'taxonomy';
+      var swatchType = $row.find('[name*="[ui][swatch_type]"]').val() || 'color';
+
       var card = $('<div class=\"hlm-admin-preview-card\"></div>');
-      card.append('<h4>' + label + '</h4>');
+
+      var header = $('<div class=\"hlm-admin-preview-header\"></div>');
+      header.append('<h4>' + label + '</h4>');
+      header.append('<span class=\"hlm-admin-preview-badge\">' + type + '</span>');
+      card.append(header);
 
       var items = $('<div class=\"hlm-admin-preview-items\"></div>');
+
       if (type === 'swatch') {
-        items.append('<span class=\"hlm-admin-chip\">Swatch</span>');
-        items.append('<span class=\"hlm-admin-chip\">Swatch</span>');
+        items.addClass('hlm-preview-swatches');
+        if (swatchType === 'color') {
+          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #ef4444;\"></span>');
+          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #3b82f6;\"></span>');
+          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #22c55e;\"></span>');
+          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #f59e0b;\"></span>');
+        } else if (swatchType === 'image') {
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
+        } else {
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">S</span>');
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">M</span>');
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">L</span>');
+          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">XL</span>');
+        }
       } else if (type === 'dropdown') {
-        items.append('<span class=\"hlm-admin-chip\">Dropdown</span>');
+        items.addClass('hlm-preview-dropdown');
+        items.append('<div class=\"hlm-admin-dropdown\"><span>Select ' + dataSource + '</span><span class=\"dashicons dashicons-arrow-down-alt2\"></span></div>');
       } else if (type === 'range') {
-        items.append('<span class=\"hlm-admin-chip\">Range</span>');
+        items.addClass('hlm-preview-range');
+        items.append('<div class=\"hlm-admin-range\"><span>Min</span><span class=\"hlm-range-slider\"></span><span>Max</span></div>');
       } else {
-        items.append('<span class=\"hlm-admin-chip\">Option A</span>');
-        items.append('<span class=\"hlm-admin-chip\">Option B</span>');
-        items.append('<span class=\"hlm-admin-chip\">Option C</span>');
+        items.addClass('hlm-preview-checkboxes');
+        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option A</span></label>');
+        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option B</span></label>');
+        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option C</span></label>');
       }
+
       card.append(items);
       $preview.append(card);
     });
@@ -144,19 +170,12 @@
     $customField.addClass('is-hidden');
   }
 
-  function toggleCard($button) {
-    var $card = $button.closest('.hlm-filter-card');
-    var $fields = $card.find('.hlm-filter-fields');
-    var isCollapsed = $card.hasClass('is-collapsed');
-    if (isCollapsed) {
-      $card.removeClass('is-collapsed');
-      $fields.slideDown(150);
-      $button.html('<span class=\"dashicons dashicons-arrow-up-alt2\"></span>Collapse').attr('aria-expanded', 'true');
-      return;
-    }
-    $card.addClass('is-collapsed');
-    $fields.slideUp(150);
-    $button.html('<span class=\"dashicons dashicons-arrow-down-alt2\"></span>Expand').attr('aria-expanded', 'false');
+  function expandAllFilters() {
+    $('#hlm-filters-list .hlm-filter-card').prop('open', true);
+  }
+
+  function collapseAllFilters() {
+    $('#hlm-filters-list .hlm-filter-card').prop('open', false);
   }
 
   function parseSwatchMap(text) {
@@ -224,9 +243,40 @@
       response.data.terms.forEach(function (term) {
         var value = map[term.id] || term.meta.color || term.meta.swatch_color || '';
         var $row = $('<div class=\"hlm-admin-modal-row\"></div>');
-        $row.append('<span>' + term.name + ' (#' + term.id + ')</span>');
+
+        var $label = $('<div class=\"hlm-admin-modal-row-label\"></div>');
+        var $preview = $('<div class=\"hlm-swatch-preview\"></div>');
+
+        if (swatchType === 'color' && value) {
+          $preview.addClass('is-color').css('background-color', value);
+        } else if (swatchType === 'image' && value) {
+          $preview.append('<img src=\"' + value + '\" alt=\"\">');
+        } else if (swatchType === 'text') {
+          $preview.text(value || '?');
+        }
+
+        $label.append($preview);
+        $label.append('<span>' + term.name + ' <small>(#' + term.id + ')</small></span>');
+        $row.append($label);
+
         var inputType = swatchType === 'color' ? 'color' : 'text';
-        var $input = $('<input type=\"' + inputType + '\" data-term-id=\"' + term.id + '\" value=\"' + value + '\">');
+        var placeholder = swatchType === 'color' ? '#000000' : (swatchType === 'image' ? 'https://...' : 'Text label');
+        var $input = $('<input type=\"' + inputType + '\" data-term-id=\"' + term.id + '\" value=\"' + value + '\" placeholder=\"' + placeholder + '\">');
+
+        $input.on('input', function () {
+          var newValue = $(this).val();
+          if (swatchType === 'color') {
+            $preview.css('background-color', newValue);
+          } else if (swatchType === 'image') {
+            $preview.find('img').remove();
+            if (newValue) {
+              $preview.append('<img src=\"' + newValue + '\" alt=\"\">');
+            }
+          } else if (swatchType === 'text') {
+            $preview.text(newValue || '?');
+          }
+        });
+
         $row.append($input);
         $list.append($row);
       });
@@ -254,6 +304,43 @@
         $modal.remove();
       });
     });
+  }
+
+  function validateField($field) {
+    var $input = $field.find('input[data-required], select[data-required]');
+    if (!$input.length) {
+      return true;
+    }
+    var value = $input.val();
+    var isValid = value && value.trim() !== '';
+    $field.toggleClass('is-invalid', !isValid);
+    return isValid;
+  }
+
+  function validateRow($row) {
+    var isValid = true;
+    $row.find('.hlm-filter-field').each(function () {
+      if (!validateField($(this))) {
+        isValid = false;
+      }
+    });
+    return isValid;
+  }
+
+  function validateAllFilters() {
+    var isValid = true;
+    $('#hlm-filters-list .hlm-filter-row').each(function () {
+      if (!validateRow($(this))) {
+        isValid = false;
+      }
+    });
+    return isValid;
+  }
+
+  function updateVisibilityMode($row, type) {
+    var $container = $row.find(type === 'category' ? '.hlm-category-select' : '.hlm-tag-select');
+    var mode = $row.find('[name*="[' + type + '_mode]"]:checked').val() || 'all';
+    $container.attr('data-mode', mode);
   }
 
   function addFilter() {
@@ -314,12 +401,17 @@
       var isHidden = $advanced.hasClass('is-hidden');
       $advanced.toggleClass('is-hidden', !isHidden);
       $(this).attr('aria-expanded', isHidden ? 'true' : 'false');
-      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide advanced' : 'Show advanced'));
+      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide advanced' : 'Advanced'));
     });
 
-    $(document).on('click', '.hlm-toggle-filter', function (event) {
+    $('#hlm-expand-all').on('click', function (event) {
       event.preventDefault();
-      toggleCard($(this));
+      expandAllFilters();
+    });
+
+    $('#hlm-collapse-all').on('click', function (event) {
+      event.preventDefault();
+      collapseAllFilters();
     });
 
     $(document).on('input', '[name*=\"[label]\"]', function () {
@@ -330,17 +422,15 @@
     $(document).on('change', '[name*=\"[type]\"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
       var type = $(this).val();
-      var source = $row.find('[name*=\"[data_source]\"]').val();
-      $row.find('.hlm-filter-meta').text(type + ' · ' + source);
+      $row.find('.hlm-badge-type').text(type);
       updateTypeVisibility($row);
       renderPreview();
     });
 
     $(document).on('change', '.hlm-data-source', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      var type = $row.find('[name*=\"[type]\"]').val();
       var source = $(this).val();
-      $row.find('.hlm-filter-meta').text(type + ' · ' + source);
+      $row.find('.hlm-badge-source').text(source);
     });
 
     $(document).on('change', '.hlm-source-picker', function () {
@@ -379,6 +469,42 @@
       }
     });
 
+    $(document).on('change', '[name*="[category_mode]"]', function () {
+      updateVisibilityMode($(this).closest('.hlm-filter-row'), 'category');
+    });
+
+    $(document).on('change', '[name*="[tag_mode]"]', function () {
+      updateVisibilityMode($(this).closest('.hlm-filter-row'), 'tag');
+    });
+
+    $(document).on('change', '[name*="[ui][swatch_type]"]', function () {
+      renderPreview();
+    });
+
+    $(document).on('blur', 'input[data-required], select[data-required]', function () {
+      validateField($(this).closest('.hlm-filter-field'));
+    });
+
+    $(document).on('input change', 'input[data-required], select[data-required]', function () {
+      var $field = $(this).closest('.hlm-filter-field');
+      if ($field.hasClass('is-invalid')) {
+        validateField($field);
+      }
+    });
+
+    $('form').on('submit', function (event) {
+      if (!validateAllFilters()) {
+        event.preventDefault();
+        alert('Please fill in all required fields before saving.');
+        var $firstInvalid = $('.hlm-filter-field.is-invalid').first();
+        if ($firstInvalid.length) {
+          $firstInvalid.find('input, select').focus();
+          $firstInvalid.closest('.hlm-filter-card').prop('open', true);
+        }
+        return false;
+      }
+    });
+
     $('#hlm-filters-list .hlm-filter-row').each(function () {
       var $row = $(this);
       updateTypeVisibility($row);
@@ -386,5 +512,27 @@
     });
 
     renderPreview();
+
+    // Import file selection
+    $(document).on('change', '.hlm-import-input', function () {
+      var $label = $(this).closest('.hlm-import-label');
+      var $submit = $(this).closest('.hlm-import-form').find('.hlm-import-submit');
+      var $text = $label.find('.hlm-import-text');
+
+      if (this.files && this.files.length > 0) {
+        $label.addClass('has-file');
+        $text.text(this.files[0].name);
+        $submit.prop('disabled', false);
+      } else {
+        $label.removeClass('has-file');
+        $text.text('Import Filters');
+        $submit.prop('disabled', true);
+      }
+    });
+
+    // Confirm before import
+    $(document).on('submit', '.hlm-import-form', function () {
+      return confirm('This will replace your current filters. Continue?');
+    });
   });
 })(jQuery);

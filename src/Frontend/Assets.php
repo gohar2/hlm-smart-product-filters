@@ -48,6 +48,10 @@ final class Assets
             'nonce' => wp_create_nonce('hlm_filters_nonce'),
             'enableAjax' => $enable_ajax,
             'enableApply' => $enable_apply_button,
+            'errorMessage' => __('Unable to load results. Please try again.', 'hlm-smart-product-filters'),
+            'noResultsText' => __('No products found', 'hlm-smart-product-filters'),
+            'oneProductText' => __('1 product found', 'hlm-smart-product-filters'),
+            'productsFoundText' => __('%d products found', 'hlm-smart-product-filters'),
         ]);
 
         $this->enqueue_styles($config);

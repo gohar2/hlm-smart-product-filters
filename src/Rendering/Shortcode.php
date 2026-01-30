@@ -150,6 +150,7 @@ final class Shortcode
             'render_context' => $render_context,
             'ui_density' => $config['global']['ui']['density'] ?? 'comfy',
             'ui_header_style' => $config['global']['ui']['header_style'] ?? 'pill',
+            'ui_layout_orientation' => $config['global']['ui']['layout_orientation'] ?? 'vertical',
             'orderby' => $sort_value,
             'search' => (string) ($request['search'] ?? ''),
         ]);
@@ -277,7 +278,7 @@ final class Shortcode
     private function clear_url(): string
     {
         $params = $_GET;
-        unset($params['hlm_filters'], $params['paged']);
+        unset($params['hlm_filters'], $params['paged'], $params['orderby']);
         $url = $this->current_url();
         $base = strtok($url, '?');
         if (!$params) {
