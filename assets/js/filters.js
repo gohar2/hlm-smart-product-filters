@@ -350,12 +350,10 @@
     var $overlay = getGlobalOverlay();
 
     if (isLoading) {
-      $form.attr('aria-busy', 'true').addClass('is-loading');
+      // Force overlay to be visible immediately
       $overlay
-        .addClass('is-active')
-        .attr('aria-hidden', 'false')
         .css({
-          'display': 'flex',
+          'display': 'flex !important',
           'position': 'fixed',
           'top': '0',
           'left': '0',
@@ -367,9 +365,16 @@
           'background': 'rgba(15, 23, 42, 0.4)',
           'backdrop-filter': 'blur(4px)',
           'margin': '0',
-          'padding': '0'
+          'padding': '0',
+          'visibility': 'visible',
+          'opacity': '1'
         })
-        .show(); // Explicitly show the overlay
+        .addClass('is-active')
+        .attr('aria-hidden', 'false')
+        .show()
+        .removeClass('is-hidden');
+      
+      $form.attr('aria-busy', 'true').addClass('is-loading');
       var resultSelector = $form.data('results') || '.products';
       $(resultSelector).first().attr('aria-busy', 'true');
       // Prevent body scroll when overlay is active
@@ -402,12 +407,15 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Abort any in-flight request to prevent race conditions
-    if (currentRequest && currentRequest.readyState !== 4) {
-      currentRequest.abort();
-    }
-
+    // Show overlay immediately before any other operations
     toggleLoading($form, true);
+
+    // Small delay to ensure overlay is rendered
+    setTimeout(function() {
+      // Abort any in-flight request to prevent race conditions
+      if (currentRequest && currentRequest.readyState !== 4) {
+        currentRequest.abort();
+      }
 
     currentRequest = $.ajax({
       url: window.HLMFilters.ajaxUrl,
@@ -444,6 +452,7 @@
         toggleLoading($form, false);
         currentRequest = null;
       });
+    }, 10); // Small delay to ensure overlay renders
   }
 
   function handleAutoApply(event) {
