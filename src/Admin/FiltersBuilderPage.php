@@ -86,9 +86,11 @@ final class FiltersBuilderPage
                     $filter['visibility']['show_on_categories'] = [];
                     $filter['visibility']['hide_on_categories'] = [];
                 } elseif ($category_mode === 'exclude') {
-                    $filter['visibility']['hide_on_categories'] = $filter['visibility']['show_on_categories'] ?? [];
+                    // When exclude mode, the form sends to hide_on_categories field
+                    $filter['visibility']['hide_on_categories'] = $filter['visibility']['hide_on_categories'] ?? [];
                     $filter['visibility']['show_on_categories'] = [];
                 } else {
+                    // When include mode, the form sends to show_on_categories field
                     $filter['visibility']['hide_on_categories'] = [];
                 }
 
@@ -96,9 +98,11 @@ final class FiltersBuilderPage
                     $filter['visibility']['show_on_tags'] = [];
                     $filter['visibility']['hide_on_tags'] = [];
                 } elseif ($tag_mode === 'exclude') {
-                    $filter['visibility']['hide_on_tags'] = $filter['visibility']['show_on_tags'] ?? [];
+                    // When exclude mode, the form sends to hide_on_tags field
+                    $filter['visibility']['hide_on_tags'] = $filter['visibility']['hide_on_tags'] ?? [];
                     $filter['visibility']['show_on_tags'] = [];
                 } else {
+                    // When include mode, the form sends to show_on_tags field
                     $filter['visibility']['hide_on_tags'] = [];
                 }
 
@@ -592,11 +596,11 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-category-select" data-mode="' . esc_attr($category_mode) . '">';
-        $this->multi_select_field($index, 'visibility][show_on_categories', __('Select categories', 'hlm-smart-product-filters'), $this->categories, $show_on_categories);
-        printf(
-            '<input type="hidden" name="filters[%s][visibility][hide_on_categories][]" value="" class="hlm-hidden-categories">',
-            esc_attr($index)
-        );
+        if ($category_mode === 'include') {
+            $this->multi_select_field($index, 'visibility][show_on_categories', __('Select categories', 'hlm-smart-product-filters'), $this->categories, $show_on_categories);
+        } elseif ($category_mode === 'exclude') {
+            $this->multi_select_field($index, 'visibility][hide_on_categories', __('Select categories to exclude', 'hlm-smart-product-filters'), $this->categories, $hide_on_categories);
+        }
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
@@ -637,11 +641,11 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-tag-select" data-mode="' . esc_attr($tag_mode) . '">';
-        $this->multi_select_field($index, 'visibility][show_on_tags', __('Select tags', 'hlm-smart-product-filters'), $this->tags, $show_on_tags);
-        printf(
-            '<input type="hidden" name="filters[%s][visibility][hide_on_tags][]" value="" class="hlm-hidden-tags">',
-            esc_attr($index)
-        );
+        if ($tag_mode === 'include') {
+            $this->multi_select_field($index, 'visibility][show_on_tags', __('Select tags', 'hlm-smart-product-filters'), $this->tags, $show_on_tags);
+        } elseif ($tag_mode === 'exclude') {
+            $this->multi_select_field($index, 'visibility][hide_on_tags', __('Select tags to exclude', 'hlm-smart-product-filters'), $this->tags, $hide_on_tags);
+        }
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
