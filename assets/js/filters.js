@@ -249,13 +249,15 @@
     if ($filtersWrap.length && payload.filters) {
       $filtersWrap.replaceWith(payload.filters);
       // Ensure overlay is hidden after filter replacement
-      // Use setTimeout to ensure this runs after DOM replacement
       setTimeout(function() {
         toggleLoading(null, false);
-        // Force hide any overlay elements
-        $('.hlm-filters-loading').removeClass('is-active').attr('aria-hidden', 'true').css('display', 'none').hide();
+        $('.hlm-filters-loading').removeClass('is-active')
+          .attr('aria-hidden', 'true')
+          .removeAttr('style')
+          .css('display', 'none')
+          .hide();
         $('body').css('overflow', '');
-      }, 0);
+      }, 10);
     }
 
     if (payload.result_count !== undefined) {
@@ -383,20 +385,28 @@
       return;
     }
 
-    $form.removeAttr('aria-busy').removeClass('is-loading');
-    
-    // Always get overlay from body to ensure we're hiding the right one
-    var $overlayToHide = $('.hlm-filters-loading').first();
-    if ($overlayToHide.length) {
-      $overlayToHide
-        .removeClass('is-active')
-        .attr('aria-hidden', 'true')
-        .css('display', 'none')
-        .hide();
+    if ($form) {
+      $form.removeAttr('aria-busy').removeClass('is-loading');
     }
     
-    var resultSelector = $form.data('results') || '.products';
-    $(resultSelector).first().removeAttr('aria-busy');
+    // Force hide ALL overlay elements - find them all and hide them
+    $('.hlm-filters-loading').each(function() {
+      var $el = $(this);
+      $el
+        .removeClass('is-active')
+        .attr('aria-hidden', 'true')
+        .hide();
+      
+      // Use attr to set style with !important (jQuery css() doesn't support !important)
+      var existingStyle = $el.attr('style') || '';
+      $el.attr('style', 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: fixed;');
+    });
+    
+    if ($form) {
+      var resultSelector = $form.data('results') || '.products';
+      $(resultSelector).first().removeAttr('aria-busy');
+    }
+    
     // Restore body scroll
     $('body').css('overflow', '');
   }
@@ -434,9 +444,10 @@
       }
     })
       .done(function (response) {
+        // Hide overlay immediately on response
+        toggleLoading($form, false);
+        
         if (response && response.success) {
-          // Hide overlay immediately on success, before DOM updates
-          toggleLoading($form, false);
           updateResults(response.data || {}, $form);
           updateUrl($form);
           // Announce results to screen readers
@@ -449,6 +460,9 @@
         }
       })
       .fail(function (_xhr, status) {
+        // Hide overlay on error
+        toggleLoading($form, false);
+        
         // Skip error message for aborted requests
         if (status === 'abort') {
           return;
@@ -457,14 +471,21 @@
         showError();
       })
       .always(function () {
-        // Always hide overlay, even if filters were replaced
-        // Use setTimeout to ensure this runs after any DOM updates
+        // Final safety check - force hide overlay
+        toggleLoading($form, false);
+        
+        // Additional force hide after a tiny delay
         setTimeout(function() {
-          toggleLoading($form, false);
-          // Double-check overlay is hidden (in case DOM was replaced)
-          $('.hlm-filters-loading').removeClass('is-active').attr('aria-hidden', 'true').css('display', 'none').hide();
+          $('.hlm-filters-loading').each(function() {
+            var $el = $(this);
+            $el.removeClass('is-active')
+              .attr('aria-hidden', 'true')
+              .hide()
+              .attr('style', 'display: none !important; visibility: hidden !important; opacity: 0 !important;');
+          });
           $('body').css('overflow', '');
-        }, 0);
+        }, 10);
+        
         currentRequest = null;
       });
   }

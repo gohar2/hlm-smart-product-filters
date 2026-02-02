@@ -63,8 +63,13 @@
 
 .hlm-filters-loading.is-active {
   display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+}
+
+.hlm-filters-loading:not(.is-active) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
 }
 
 .hlm-filters-loading-inner {
