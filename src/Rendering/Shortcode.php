@@ -96,12 +96,24 @@ final class Shortcode
                 continue;
             }
             $hide_empty = (bool) ($filter['visibility']['hide_empty'] ?? false);
-            $terms = get_terms([
+            
+            // Get product IDs based on current page context
+            $context_product_ids = $this->get_context_product_ids($context);
+            
+            // Build get_terms arguments
+            $term_args = [
                 'taxonomy' => $taxonomy,
                 'hide_empty' => false,
                 'orderby' => 'name',
                 'order' => 'ASC',
-            ]);
+            ];
+            
+            // Filter terms by products in current context
+            if (!empty($context_product_ids)) {
+                $term_args['object_ids'] = $context_product_ids;
+            }
+            
+            $terms = get_terms($term_args);
             if (is_wp_error($terms)) {
                 $terms = [];
             }
@@ -188,20 +200,27 @@ final class Shortcode
     {
         $category_id = 0;
         $tag_id = 0;
+        $custom_taxonomy = '';
+        $custom_term_id = 0;
 
         $queried = get_queried_object();
         if ($queried && isset($queried->term_id, $queried->taxonomy)) {
             if ($queried->taxonomy === 'product_cat') {
                 $category_id = (int) $queried->term_id;
-            }
-            if ($queried->taxonomy === 'product_tag') {
+            } elseif ($queried->taxonomy === 'product_tag') {
                 $tag_id = (int) $queried->term_id;
+            } elseif (taxonomy_exists($queried->taxonomy)) {
+                // Custom taxonomy
+                $custom_taxonomy = $queried->taxonomy;
+                $custom_term_id = (int) $queried->term_id;
             }
         }
 
         return [
             'category_id' => $category_id,
             'tag_id' => $tag_id,
+            'custom_taxonomy' => $custom_taxonomy,
+            'custom_term_id' => $custom_term_id,
         ];
     }
 
@@ -286,5 +305,66 @@ final class Shortcode
             return esc_url_raw($base);
         }
         return esc_url_raw($base . '?' . http_build_query($params));
+    }
+
+    /**
+     * Get product IDs that match the current page context (category, tag, or custom taxonomy)
+     *
+     * @param array $context The current page context
+     * @return array Array of product IDs, or empty array if no context
+     */
+    private function get_context_product_ids(array $context): array
+    {
+        $category_id = (int) ($context['category_id'] ?? 0);
+        $tag_id = (int) ($context['tag_id'] ?? 0);
+        $custom_taxonomy = (string) ($context['custom_taxonomy'] ?? '');
+        $custom_term_id = (int) ($context['custom_term_id'] ?? 0);
+
+        // If no context, return empty array (show all products)
+        if ($category_id === 0 && $tag_id === 0 && ($custom_taxonomy === '' || $custom_term_id === 0)) {
+            return [];
+        }
+
+        // Build tax query based on context
+        $tax_query = ['relation' => 'AND'];
+        
+        if ($category_id > 0) {
+            $tax_query[] = [
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => [$category_id],
+            ];
+        }
+        
+        if ($tag_id > 0) {
+            $tax_query[] = [
+                'taxonomy' => 'product_tag',
+                'field' => 'term_id',
+                'terms' => [$tag_id],
+            ];
+        }
+        
+        if ($custom_taxonomy !== '' && $custom_term_id > 0 && taxonomy_exists($custom_taxonomy)) {
+            $tax_query[] = [
+                'taxonomy' => $custom_taxonomy,
+                'field' => 'term_id',
+                'terms' => [$custom_term_id],
+            ];
+        }
+
+        // Query products matching the context
+        $query_args = [
+            'post_type' => 'product',
+            'post_status' => 'publish',
+            'tax_query' => $tax_query,
+            'fields' => 'ids',
+            'posts_per_page' => -1,
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ];
+
+        $query = new \WP_Query($query_args);
+        return $query->posts ? array_map('intval', $query->posts) : [];
     }
 }

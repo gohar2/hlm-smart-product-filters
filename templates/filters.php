@@ -7,6 +7,8 @@ $search = isset($search) ? sanitize_text_field((string) $search) : (isset($_GET[
 $orderby = isset($orderby) ? sanitize_key((string) $orderby) : (isset($_GET['orderby']) ? sanitize_key((string) $_GET['orderby']) : '');
 $category_id = (int) ($context['category_id'] ?? 0);
 $tag_id = (int) ($context['tag_id'] ?? 0);
+$custom_taxonomy = (string) ($context['custom_taxonomy'] ?? '');
+$custom_term_id = (int) ($context['custom_term_id'] ?? 0);
 $render_context = isset($render_context) ? (string) $render_context : 'shortcode';
 $ui_density = isset($ui_density) ? (string) $ui_density : 'comfy';
 $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
@@ -36,6 +38,10 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
     <?php endif; ?>
     <input type="hidden" name="hlm_context[category_id]" value="<?php echo esc_attr((string) $category_id); ?>">
     <input type="hidden" name="hlm_context[tag_id]" value="<?php echo esc_attr((string) $tag_id); ?>">
+    <?php if ($custom_taxonomy !== '' && $custom_term_id > 0) : ?>
+        <input type="hidden" name="hlm_context[custom_taxonomy]" value="<?php echo esc_attr($custom_taxonomy); ?>">
+        <input type="hidden" name="hlm_context[custom_term_id]" value="<?php echo esc_attr((string) $custom_term_id); ?>">
+    <?php endif; ?>
     <input type="hidden" name="hlm_render_context" value="<?php echo esc_attr($render_context); ?>">
 
     <div class="hlm-filter-sort">

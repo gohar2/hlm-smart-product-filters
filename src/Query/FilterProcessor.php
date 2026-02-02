@@ -288,6 +288,8 @@ final class FilterProcessor
         $clauses = [];
         $category_id = isset($context['category_id']) ? (int) $context['category_id'] : 0;
         $tag_id = isset($context['tag_id']) ? (int) $context['tag_id'] : 0;
+        $custom_taxonomy = isset($context['custom_taxonomy']) ? (string) $context['custom_taxonomy'] : '';
+        $custom_term_id = isset($context['custom_term_id']) ? (int) $context['custom_term_id'] : 0;
 
         if ($category_id > 0) {
             $clauses[] = [
@@ -302,6 +304,14 @@ final class FilterProcessor
                 'taxonomy' => 'product_tag',
                 'field' => 'term_id',
                 'terms' => [$tag_id],
+            ];
+        }
+
+        if ($custom_taxonomy !== '' && $custom_term_id > 0 && taxonomy_exists($custom_taxonomy)) {
+            $clauses[] = [
+                'taxonomy' => $custom_taxonomy,
+                'field' => 'term_id',
+                'terms' => [$custom_term_id],
             ];
         }
 
