@@ -350,8 +350,15 @@
     var $overlay = getGlobalOverlay();
 
     if (isLoading) {
-      // Force overlay to be visible immediately
+      // Ensure overlay exists and is in the DOM
+      if (!$overlay.parent().length) {
+        $('body').append($overlay);
+      }
+      
+      // Force overlay to be visible immediately with all necessary styles
       $overlay
+        .addClass('is-active')
+        .attr('aria-hidden', 'false')
         .css({
           'display': 'flex',
           'position': 'fixed',
@@ -367,15 +374,17 @@
           'margin': '0',
           'padding': '0',
           'visibility': 'visible',
-          'opacity': '1'
+          'opacity': '1',
+          'pointer-events': 'auto'
         })
-        .addClass('is-active')
-        .attr('aria-hidden', 'false')
         .show();
       
-      // Use attr to set style with !important as fallback
+      // Force styles with !important via style attribute as fallback
+      var importantStyles = 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important;';
       var existingStyle = $overlay.attr('style') || '';
-      $overlay.attr('style', existingStyle + '; display: flex !important; visibility: visible !important; opacity: 1 !important;');
+      if (existingStyle.indexOf('!important') === -1) {
+        $overlay.attr('style', existingStyle + (existingStyle ? '; ' : '') + importantStyles);
+      }
       
       $form.attr('aria-busy', 'true').addClass('is-loading');
       var resultSelector = $form.data('results') || '.products';
@@ -410,17 +419,19 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Show overlay immediately before any other operations
+    // Abort any in-flight request to prevent race conditions
+    if (currentRequest && currentRequest.readyState !== 4) {
+      currentRequest.abort();
+    }
+
+    // Show overlay immediately and synchronously - don't wait for any async operations
     toggleLoading($form, true);
-
-    // Small delay to ensure overlay is rendered
-    setTimeout(function() {
-      // Abort any in-flight request to prevent race conditions
-      if (currentRequest && currentRequest.readyState !== 4) {
-        currentRequest.abort();
-      }
-
-    currentRequest = $.ajax({
+    
+    // Use requestAnimationFrame to ensure overlay is painted before starting AJAX
+    requestAnimationFrame(function() {
+      // Small delay to ensure overlay is fully visible to user
+      setTimeout(function() {
+        currentRequest = $.ajax({
       url: window.HLMFilters.ajaxUrl,
       method: 'POST',
       dataType: 'json',
@@ -455,7 +466,8 @@
         toggleLoading($form, false);
         currentRequest = null;
       });
-    }, 10); // Small delay to ensure overlay renders
+      }, 50); // Small delay to ensure overlay is fully visible
+    });
   }
 
   function handleAutoApply(event) {
@@ -565,7 +577,6 @@
   }
 
   $(document)
-    .on('submit', 'form.hlm-filters', handleSubmit)
     .on('click', handlePaginationClick)
     .on('click', handleShowMore)
     .on('click', '.hlm-filter-toggle', handleFilterToggle)
@@ -584,7 +595,7 @@
     
     // Ensure AJAX handlers are properly attached
     if (window.HLMFilters && window.HLMFilters.enableAjax) {
-      // Make sure form submission is intercepted - use namespace to avoid conflicts
+      // Remove any existing handlers and attach with namespace to avoid conflicts
       $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
     }
   });
@@ -595,6 +606,7 @@
     getGlobalOverlay();
     
     if (window.HLMFilters && window.HLMFilters.enableAjax) {
+      // Remove any existing handlers and attach with namespace to avoid conflicts
       $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
     }
   });
