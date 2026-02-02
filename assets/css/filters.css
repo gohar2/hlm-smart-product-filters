@@ -65,11 +65,9 @@
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
-  display: flex;
 }
 
 .hlm-filters-loading-inner {
-  background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 18px;
   padding: 18px 22px;

@@ -297,12 +297,18 @@
   }
 
   function getGlobalOverlay() {
-    var $overlay = $('#hlm-global-loading');
+    // Find existing overlay from template or create new one
+    var $overlay = $('.hlm-filters-loading').first();
+    
+    // If found, ensure it's in body for proper positioning
     if ($overlay.length) {
+      if (!$overlay.parent().is('body')) {
+        $overlay.detach().appendTo('body');
+      }
       return $overlay;
     }
 
-    // Create overlay with proper HTML structure
+    // Create new overlay if none exists
     var html = '<div class="hlm-filters-loading-inner" role="alert" aria-busy="true">' +
       '<svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">' +
       '<defs>' +
@@ -320,27 +326,8 @@
       '</div>' +
       '</div>';
     
-    $overlay = $('<div id="hlm-global-loading" class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true"></div>');
+    $overlay = $('<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true"></div>');
     $overlay.html(html);
-
-    $overlay.css({
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      right: '0',
-      bottom: '0',
-      width: '100%',
-      height: '100%',
-      display: 'none',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: '999999',
-      background: 'rgba(15, 23, 42, 0.4)',
-      backdropFilter: 'blur(4px)',
-      margin: '0',
-      padding: '0'
-    });
-
     $('body').append($overlay);
     return $overlay;
   }
@@ -350,12 +337,13 @@
     var $overlay = getGlobalOverlay();
 
     if (isLoading) {
-      // Ensure overlay exists and is in the DOM
-      if (!$overlay.parent().length) {
+      // Ensure overlay is in body for proper positioning
+      if (!$overlay.parent().is('body')) {
+        $overlay.detach();
         $('body').append($overlay);
       }
       
-      // Force overlay to be visible immediately with all necessary styles
+      // Show overlay immediately - use class and inline styles
       $overlay
         .addClass('is-active')
         .attr('aria-hidden', 'false')
@@ -378,13 +366,6 @@
           'pointer-events': 'auto'
         })
         .show();
-      
-      // Force styles with !important via style attribute as fallback
-      var importantStyles = 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important;';
-      var existingStyle = $overlay.attr('style') || '';
-      if (existingStyle.indexOf('!important') === -1) {
-        $overlay.attr('style', existingStyle + (existingStyle ? '; ' : '') + importantStyles);
-      }
       
       $form.attr('aria-busy', 'true').addClass('is-loading');
       var resultSelector = $form.data('results') || '.products';
@@ -424,14 +405,11 @@
       currentRequest.abort();
     }
 
-    // Show overlay immediately and synchronously - don't wait for any async operations
+    // Show overlay immediately - no delays
     toggleLoading($form, true);
     
-    // Use requestAnimationFrame to ensure overlay is painted before starting AJAX
-    requestAnimationFrame(function() {
-      // Small delay to ensure overlay is fully visible to user
-      setTimeout(function() {
-        currentRequest = $.ajax({
+    // Start AJAX request
+    currentRequest = $.ajax({
       url: window.HLMFilters.ajaxUrl,
       method: 'POST',
       dataType: 'json',
@@ -466,8 +444,6 @@
         toggleLoading($form, false);
         currentRequest = null;
       });
-      }, 50); // Small delay to ensure overlay is fully visible
-    });
   }
 
   function handleAutoApply(event) {
