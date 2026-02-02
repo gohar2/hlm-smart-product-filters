@@ -248,6 +248,8 @@
 
     if ($filtersWrap.length && payload.filters) {
       $filtersWrap.replaceWith(payload.filters);
+      // Ensure overlay is hidden after filter replacement
+      toggleLoading(null, false);
     }
 
     if (payload.result_count !== undefined) {
@@ -376,11 +378,17 @@
     }
 
     $form.removeAttr('aria-busy').removeClass('is-loading');
-    $overlay
-      .removeClass('is-active')
-      .attr('aria-hidden', 'true')
-      .css('display', 'none')
-      .hide(); // Explicitly hide the overlay
+    
+    // Always get overlay from body to ensure we're hiding the right one
+    var $overlayToHide = $('.hlm-filters-loading').first();
+    if ($overlayToHide.length) {
+      $overlayToHide
+        .removeClass('is-active')
+        .attr('aria-hidden', 'true')
+        .css('display', 'none')
+        .hide();
+    }
+    
     var resultSelector = $form.data('results') || '.products';
     $(resultSelector).first().removeAttr('aria-busy');
     // Restore body scroll
@@ -441,6 +449,7 @@
         showError();
       })
       .always(function () {
+        // Always hide overlay, even if filters were replaced
         toggleLoading($form, false);
         currentRequest = null;
       });

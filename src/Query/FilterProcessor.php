@@ -109,6 +109,45 @@ final class FilterProcessor
             }
         }
 
+        // If we have post__in from attribute filters AND context, we need to intersect
+        // the post__in with products matching the context
+        if (is_array($post_in) && !empty($post_in) && !empty($context_tax_query)) {
+            $context_query = new \WP_Query([
+                'post_type' => 'product',
+                'post_status' => 'publish',
+                'tax_query' => $context_tax_query,
+                'fields' => 'ids',
+                'posts_per_page' => -1,
+                'no_found_rows' => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+            ]);
+            $context_product_ids = $context_query->posts ? array_map('intval', $context_query->posts) : [];
+            if (!empty($context_product_ids)) {
+                $post_in = array_values(array_intersect($post_in, $context_product_ids));
+            } else {
+                // No products match context, so no results
+                $post_in = [];
+            }
+            // Remove context from tax_query since we're handling it via post__in intersection
+            $tax_query = array_filter($tax_query, function($clause) use ($context_tax_query) {
+                if (!is_array($clause) || !isset($clause['taxonomy'])) {
+                    return true;
+                }
+                foreach ($context_tax_query as $context_clause) {
+                    if (isset($context_clause['taxonomy']) && 
+                        $context_clause['taxonomy'] === $clause['taxonomy'] &&
+                        isset($context_clause['terms']) && 
+                        isset($clause['terms']) &&
+                        $context_clause['terms'] === $clause['terms']) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+            $tax_query = array_values($tax_query);
+        }
+
         if (is_array($post_in)) {
             $defaults['post__in'] = $post_in ? $post_in : [0];
         }
