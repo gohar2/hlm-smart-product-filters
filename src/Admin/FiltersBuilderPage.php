@@ -424,15 +424,14 @@ final class FiltersBuilderPage
         echo '</div>';
         echo '<div class="hlm-filter-tabs">';
         echo '<div class="hlm-tab-nav" role="tablist">';
-        echo '<button type="button" class="hlm-tab-button active" role="tab" aria-selected="true" data-tab="basics">' . esc_html__('Basics', 'hlm-smart-product-filters') . '</button>';
-        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="source">' . esc_html__('Data Source', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button active" role="tab" aria-selected="true" data-tab="general">' . esc_html__('General', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="behavior">' . esc_html__('Behavior', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="ui">' . esc_html__('UI', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="visibility">' . esc_html__('Visibility', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="advanced">' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
         echo '<div class="hlm-tab-panels">';
-        echo '<div class="hlm-tab-panel active" role="tabpanel" data-tab="basics">';
+        echo '<div class="hlm-tab-panel active" role="tabpanel" data-tab="general">';
         echo '<div class="hlm-filter-section">';
 
         $this->text_field($index, 'label', __('Label', 'hlm-smart-product-filters'), $label, [
@@ -440,11 +439,6 @@ final class FiltersBuilderPage
             'required' => true,
             'data-validation' => __('Label is required', 'hlm-smart-product-filters'),
         ]);
-        echo '</div>';
-        echo '</div>';
-
-        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="source">';
-        echo '<div class="hlm-filter-section">';
         echo '<label class="hlm-filter-field hlm-source-field">' . esc_html__('Source', 'hlm-smart-product-filters');
         echo '<select class="hlm-source-picker" name="filters[' . esc_attr($index) . '][source_picker]" data-required="true">';
         echo '<option value="">' . esc_html__('Select source', 'hlm-smart-product-filters') . '</option>';

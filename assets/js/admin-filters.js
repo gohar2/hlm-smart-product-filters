@@ -258,7 +258,7 @@
   function expandAllFilters() {
     $('#hlm-filters-list .hlm-filter-row').each(function() {
       var $row = $(this);
-      switchTab($row, 'basics');
+      switchTab($row, 'general');
     });
   }
 
