@@ -455,13 +455,15 @@
 }
 
 .hlm-tab-panel {
-  display: none;
+  display: none !important;
   padding: 20px;
   animation: hlm-fadeIn 0.2s ease;
 }
 
 .hlm-tab-panel.active {
-  display: block;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 @keyframes hlm-fadeIn {

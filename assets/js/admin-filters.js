@@ -260,13 +260,25 @@
     var $panels = $tabs.find('.hlm-tab-panel');
     
     $buttons.removeClass('active').attr('aria-selected', 'false');
-    $panels.removeClass('active');
+    $panels.removeClass('active').css({
+      'display': 'none',
+      'visibility': 'hidden',
+      'opacity': '0'
+    });
     
     var $activeButton = $buttons.filter('[data-tab="' + tabName + '"]');
     var $activePanel = $panels.filter('[data-tab="' + tabName + '"]');
     
-    $activeButton.addClass('active').attr('aria-selected', 'true');
-    $activePanel.addClass('active');
+    if ($activeButton.length && $activePanel.length) {
+      $activeButton.addClass('active').attr('aria-selected', 'true');
+      $activePanel.addClass('active').css({
+        'display': 'block',
+        'visibility': 'visible',
+        'opacity': '1'
+      });
+    } else {
+      console.warn('Tab not found:', tabName, 'Button:', $activeButton.length, 'Panel:', $activePanel.length, 'Available tabs:', $panels.map(function() { return $(this).data('tab'); }).get());
+    }
   }
 
   function expandAllFilters() {
