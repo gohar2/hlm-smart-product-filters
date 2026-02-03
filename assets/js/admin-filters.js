@@ -152,6 +152,9 @@
     } else if (value === 'custom') {
       $dataSource.val('taxonomy');
       $customField.removeClass('is-hidden');
+      // Keep the picker value as 'custom' - don't let it reset
+      $picker.val('custom');
+      
       // Auto-fill from custom input if it has a value
       if ($customInput.val()) {
         $sourceKey.val($customInput.val());
@@ -169,17 +172,11 @@
         if (!$idInput.val()) {
           $idInput.val(normalizeKey(customValue));
         }
-        // Auto-fill advanced fields
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(customValue));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(customValue));
-        }
-      } else {
-        // Clear source key if custom input is empty
-        $sourceKey.val('');
       }
+      // Don't trigger change on sourceKey to prevent resetting the picker
+      applyAutoValues($row);
+      $dataSource.trigger('change');
+      return; // Return early to prevent triggering sourceKey change
     } else {
       // Attribute selected
       $dataSource.val('attribute');
@@ -217,6 +214,8 @@
     var $picker = $row.find('.hlm-source-picker');
     var $customField = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
     var $customInput = $row.find('[name*="[custom_source]"]');
+    var currentPickerValue = $picker.val();
+    
     if (!$picker.length) {
       return;
     }
@@ -230,14 +229,29 @@
       $customField.addClass('is-hidden');
       return;
     }
-    if (dataSource === 'taxonomy' && sourceKey) {
-      $picker.val('custom');
-      $customInput.val(sourceKey);
-      $customField.removeClass('is-hidden');
-      return;
+    if (dataSource === 'taxonomy') {
+      // If picker is already set to 'custom', keep it that way
+      if (currentPickerValue === 'custom') {
+        $picker.val('custom');
+        if (sourceKey) {
+          $customInput.val(sourceKey);
+        }
+        $customField.removeClass('is-hidden');
+        return;
+      }
+      // If sourceKey exists, set to custom
+      if (sourceKey) {
+        $picker.val('custom');
+        $customInput.val(sourceKey);
+        $customField.removeClass('is-hidden');
+        return;
+      }
     }
-    $picker.val('');
-    $customField.addClass('is-hidden');
+    // Only reset if we're not in the middle of selecting custom
+    if (currentPickerValue !== 'custom') {
+      $picker.val('');
+      $customField.addClass('is-hidden');
+    }
   }
 
   function switchTab($row, tabName) {
