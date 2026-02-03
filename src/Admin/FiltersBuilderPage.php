@@ -408,8 +408,8 @@ final class FiltersBuilderPage
 
         echo '<li class="hlm-filter-row">';
         echo '<div class="hlm-filter-handle" title="' . esc_attr__('Drag to reorder', 'hlm-smart-product-filters') . '"><span class="dashicons dashicons-menu"></span></div>';
-        echo '<details class="hlm-filter-card" open>';
-        echo '<summary class="hlm-filter-summary">';
+        echo '<div class="hlm-filter-card">';
+        echo '<div class="hlm-filter-header">';
         echo '<div class="hlm-filter-title">';
         echo '<strong class="hlm-filter-title-text">' . esc_html($label ?: __('New Filter', 'hlm-smart-product-filters')) . '</strong>';
         echo '<span class="hlm-filter-badges">';
@@ -419,12 +419,21 @@ final class FiltersBuilderPage
         echo '</div>';
         echo '<div class="hlm-filter-actions">';
         echo '<button type="button" class="button hlm-edit-swatch hlm-swatch-only" data-index="' . esc_attr($index) . '"><span class="dashicons dashicons-art"></span>' . esc_html__('Swatches', 'hlm-smart-product-filters') . '</button>';
-        echo '<button type="button" class="button hlm-toggle-advanced" aria-expanded="false"><span class="dashicons dashicons-admin-generic"></span>' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="button-link-delete hlm-remove-filter">' . esc_html__('Remove', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
-        echo '</summary>';
-        echo '<div class="hlm-filter-content">';
-        echo '<div class="hlm-filter-fields">';
-        echo '<div class="hlm-filter-section"><h3>' . esc_html__('Basics', 'hlm-smart-product-filters') . '</h3>';
+        echo '</div>';
+        echo '<div class="hlm-filter-tabs">';
+        echo '<div class="hlm-tab-nav" role="tablist">';
+        echo '<button type="button" class="hlm-tab-button active" role="tab" aria-selected="true" data-tab="basics">' . esc_html__('Basics', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="source">' . esc_html__('Data Source', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="behavior">' . esc_html__('Behavior', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="ui">' . esc_html__('UI', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="visibility">' . esc_html__('Visibility', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="advanced">' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
+        echo '</div>';
+        echo '<div class="hlm-tab-panels">';
+        echo '<div class="hlm-tab-panel active" role="tabpanel" data-tab="basics">';
+        echo '<div class="hlm-filter-section">';
 
         $this->text_field($index, 'label', __('Label', 'hlm-smart-product-filters'), $label, [
             'data-help' => __('Shown to shoppers.', 'hlm-smart-product-filters'),
@@ -432,8 +441,10 @@ final class FiltersBuilderPage
             'data-validation' => __('Label is required', 'hlm-smart-product-filters'),
         ]);
         echo '</div>';
+        echo '</div>';
 
-        echo '<div class="hlm-filter-section"><h3>' . esc_html__('Data Source', 'hlm-smart-product-filters') . '</h3>';
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="source">';
+        echo '<div class="hlm-filter-section">';
         echo '<label class="hlm-filter-field hlm-source-field">' . esc_html__('Source', 'hlm-smart-product-filters');
         echo '<select class="hlm-source-picker" name="filters[' . esc_attr($index) . '][source_picker]" data-required="true">';
         echo '<option value="">' . esc_html__('Select source', 'hlm-smart-product-filters') . '</option>';
@@ -475,8 +486,10 @@ final class FiltersBuilderPage
         );
 
         echo '</div>';
+        echo '</div>';
 
-        echo '<div class="hlm-filter-section"><h3>' . esc_html__('Behavior', 'hlm-smart-product-filters') . '</h3>';
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="behavior">';
+        echo '<div class="hlm-filter-section">';
         echo '<label class="hlm-filter-checkbox">';
         printf(
             '<input type="hidden" name="filters[%s][behavior][multi_select]" value="0">',
@@ -495,8 +508,10 @@ final class FiltersBuilderPage
             'AND' => __('AND', 'hlm-smart-product-filters'),
         ], ['data-help' => __('How multi-select combines values.', 'hlm-smart-product-filters')]);
         echo '</div>';
+        echo '</div>';
 
-        echo '<div class="hlm-filter-section"><h3>' . esc_html__('UI', 'hlm-smart-product-filters') . '</h3>';
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="ui">';
+        echo '<div class="hlm-filter-section">';
         $this->select_field($index, 'type', __('Display type', 'hlm-smart-product-filters'), $type, [
             'checkbox' => __('List (checkboxes)', 'hlm-smart-product-filters'),
             'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
@@ -543,9 +558,10 @@ final class FiltersBuilderPage
             'wrapper_class' => 'hlm-swatch-only',
         ]);
         echo '</div>';
+        echo '</div>';
 
-        echo '<div class="hlm-filter-section hlm-filter-advanced is-hidden">';
-        echo '<h3>' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</h3>';
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="visibility">';
+        echo '<div class="hlm-filter-section">';
         $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, [
             'data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters'),
         ]);
@@ -557,10 +573,6 @@ final class FiltersBuilderPage
             'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
             'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
         ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
-        echo '</div>';
-
-        echo '<div class="hlm-filter-section"><h3>' . esc_html__('Visibility', 'hlm-smart-product-filters') . '</h3>';
-
         $category_mode = 'all';
         if (!empty($show_on_categories)) {
             $category_mode = 'include';
@@ -668,13 +680,27 @@ final class FiltersBuilderPage
         );
         echo '</label>';
         echo '</div>';
-
         echo '</div>';
 
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="advanced">';
+        echo '<div class="hlm-filter-section">';
+        $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, [
+            'data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters'),
+        ]);
+        $this->text_field($index, 'key', __('Key (query string)', 'hlm-smart-product-filters'), $key, [
+            'data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters'),
+        ]);
+        $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
+            'both' => __('Shortcode + auto', 'hlm-smart-product-filters'),
+            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
+            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
+        ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
         echo '</div>';
         echo '</div>';
-        echo '<button type="button" class="button-link-delete hlm-remove-filter">' . esc_html__('Remove', 'hlm-smart-product-filters') . '</button>';
-        echo '</details>';
+
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
         echo '</li>';
     }
 

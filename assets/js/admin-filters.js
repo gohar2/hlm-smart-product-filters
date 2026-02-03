@@ -169,15 +169,12 @@
         if (!$idInput.val()) {
           $idInput.val(normalizeKey(customValue));
         }
-        // Auto-fill advanced fields if they're visible
-        var $advanced = $row.find('.hlm-filter-advanced');
-        if (!$advanced.hasClass('is-hidden')) {
-          if (!$keyInput.val()) {
-            $keyInput.val(normalizeKey(customValue));
-          }
-          if (!$idInput.val()) {
-            $idInput.val(normalizeKey(customValue));
-          }
+        // Auto-fill advanced fields
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(customValue));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(customValue));
         }
       } else {
         // Clear source key if custom input is empty
@@ -200,24 +197,12 @@
       if (!$idInput.val()) {
         $idInput.val(normalizeKey(value));
       }
-      // Auto-fill advanced fields if they're visible
-      var $advanced = $row.find('.hlm-filter-advanced');
-      if (!$advanced.hasClass('is-hidden')) {
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(value));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(value));
-        }
+      // Auto-fill advanced fields (will be visible when user switches to Advanced tab)
+      if (!$keyInput.val()) {
+        $keyInput.val(normalizeKey(value));
       }
-      var $advanced = $row.find('.hlm-filter-advanced');
-      if (!$advanced.hasClass('is-hidden')) {
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(value));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(value));
-        }
+      if (!$idInput.val()) {
+        $idInput.val(normalizeKey(value));
       }
     }
 
@@ -255,12 +240,32 @@
     $customField.addClass('is-hidden');
   }
 
+  function switchTab($row, tabName) {
+    var $tabs = $row.find('.hlm-filter-tabs');
+    var $buttons = $tabs.find('.hlm-tab-button');
+    var $panels = $tabs.find('.hlm-tab-panel');
+    
+    $buttons.removeClass('active').attr('aria-selected', 'false');
+    $panels.removeClass('active');
+    
+    var $activeButton = $buttons.filter('[data-tab="' + tabName + '"]');
+    var $activePanel = $panels.filter('[data-tab="' + tabName + '"]');
+    
+    $activeButton.addClass('active').attr('aria-selected', 'true');
+    $activePanel.addClass('active');
+  }
+
   function expandAllFilters() {
-    $('#hlm-filters-list .hlm-filter-card').prop('open', true);
+    $('#hlm-filters-list .hlm-filter-row').each(function() {
+      var $row = $(this);
+      switchTab($row, 'basics');
+    });
   }
 
   function collapseAllFilters() {
-    $('#hlm-filters-list .hlm-filter-card').prop('open', false);
+    // Tabs are always visible, so collapse doesn't make sense
+    // But we can switch all to basics tab
+    expandAllFilters();
   }
 
   function parseSwatchMap(text) {
@@ -498,14 +503,13 @@
       openSwatchModal($(this).closest('.hlm-filter-row'));
     });
 
-    $(document).on('click', '.hlm-toggle-advanced', function (event) {
+    // Tab switching
+    $(document).on('click', '.hlm-tab-button', function (event) {
       event.preventDefault();
-      var $row = $(this).closest('.hlm-filter-row');
-      var $advanced = $row.find('.hlm-filter-advanced');
-      var isHidden = $advanced.hasClass('is-hidden');
-      $advanced.toggleClass('is-hidden', !isHidden);
-      $(this).attr('aria-expanded', isHidden ? 'true' : 'false');
-      $(this).html('<span class=\"dashicons dashicons-admin-generic\"></span>' + (isHidden ? 'Hide advanced' : 'Advanced'));
+      var $button = $(this);
+      var $row = $button.closest('.hlm-filter-row');
+      var tabName = $button.data('tab');
+      switchTab($row, tabName);
     });
 
     $('#hlm-expand-all').on('click', function (event) {
@@ -626,8 +630,14 @@
         alert('Please fill in all required fields before saving.');
         var $firstInvalid = $('.hlm-filter-field.is-invalid').first();
         if ($firstInvalid.length) {
+          var $row = $firstInvalid.closest('.hlm-filter-row');
+          // Determine which tab the invalid field is in
+          var $panel = $firstInvalid.closest('.hlm-tab-panel');
+          if ($panel.length) {
+            var tabName = $panel.data('tab');
+            switchTab($row, tabName);
+          }
           $firstInvalid.find('input, select').focus();
-          $firstInvalid.closest('.hlm-filter-card').prop('open', true);
         }
         return false;
       }
