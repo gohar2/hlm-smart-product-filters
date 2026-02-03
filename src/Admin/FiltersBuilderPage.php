@@ -562,17 +562,6 @@ final class FiltersBuilderPage
 
         echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="visibility">';
         echo '<div class="hlm-filter-section">';
-        $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, [
-            'data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters'),
-        ]);
-        $this->text_field($index, 'key', __('Key (query string)', 'hlm-smart-product-filters'), $key, [
-            'data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters'),
-        ]);
-        $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
-            'both' => __('Shortcode + auto', 'hlm-smart-product-filters'),
-            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
-            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
         $category_mode = 'all';
         if (!empty($show_on_categories)) {
             $category_mode = 'include';

@@ -451,6 +451,7 @@
 .hlm-tab-panels {
   position: relative;
   min-height: 200px;
+  max-width: 900px;
 }
 
 .hlm-tab-panel {
@@ -496,7 +497,26 @@
 .hlm-filter-field select,
 .hlm-filter-field textarea {
   width: 100%;
-  max-width: 100%;
+  max-width: 500px;
+}
+
+.hlm-filter-field input[type="text"],
+.hlm-filter-field input[type="number"] {
+  max-width: 400px;
+}
+
+.hlm-filter-field select {
+  max-width: 400px;
+}
+
+.hlm-filter-field textarea {
+  max-width: 600px;
+}
+
+.hlm-visibility-select select[multiple],
+.hlm-filter-field select[multiple] {
+  max-width: 500px;
+  width: 100%;
 }
 
 .hlm-filter-field input:focus,
