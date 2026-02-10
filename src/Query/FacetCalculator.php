@@ -83,13 +83,14 @@ final class FacetCalculator
                 continue;
             }
 
-            $terms = get_terms([
+            // Get all terms in the taxonomy (not filtered by object_ids yet)
+            // We need all terms to properly calculate counts with children
+            $all_terms = get_terms([
                 'taxonomy' => $taxonomy,
                 'hide_empty' => false,
-                'object_ids' => $object_ids,
             ]);
 
-            if (is_wp_error($terms)) {
+            if (is_wp_error($all_terms)) {
                 $result[$key] = [];
                 if ($enable_cache) {
                     $this->cache->set($cache_key, $result[$key], $cache_ttl);
@@ -97,9 +98,42 @@ final class FacetCalculator
                 continue;
             }
 
+            $include_children = !empty($filter['visibility']['include_children']);
+            $is_hierarchical = ($taxonomy === 'product_cat' || is_taxonomy_hierarchical($taxonomy));
+
             $counts = [];
-            foreach ($terms as $term) {
-                $counts[(int) $term->term_id] = (int) $term->count;
+            foreach ($all_terms as $term) {
+                $term_id = (int) $term->term_id;
+                
+                // Use WP_Query to count products matching this term (with include_children if enabled)
+                // This ensures the count matches exactly what the filter query would return
+                $count_query_args = [
+                    'post_type' => 'product',
+                    'post_status' => 'publish',
+                    'post__in' => $object_ids, // Only count products in our filtered set
+                    'fields' => 'ids',
+                    'posts_per_page' => -1,
+                    'no_found_rows' => true,
+                    'update_post_meta_cache' => false,
+                    'update_post_term_cache' => false,
+                    'tax_query' => [
+                        [
+                            'taxonomy' => $taxonomy,
+                            'field' => 'term_id',
+                            'terms' => [$term_id],
+                            'operator' => 'IN',
+                            'include_children' => ($include_children && $is_hierarchical) ? true : false,
+                        ],
+                    ],
+                ];
+                
+                $count_query = new WP_Query($count_query_args);
+                $count = count($count_query->posts);
+
+                // Only include terms that have products in our filtered set
+                if ($count > 0) {
+                    $counts[$term_id] = $count;
+                }
             }
 
             $result[$key] = $counts;
@@ -182,10 +216,23 @@ final class FacetCalculator
     private function cache_key(array $config, array $request, string $filter_key): string
     {
         $version = (int) get_option('hlm_filters_cache_version', 1);
+        
+        // Include filter-specific settings in cache key to ensure counts are recalculated when settings change
+        $filter_config = null;
+        foreach (($config['filters'] ?? []) as $filter) {
+            if (is_array($filter) && ($filter['key'] ?? '') === $filter_key) {
+                $filter_config = [
+                    'include_children' => !empty($filter['visibility']['include_children'] ?? false),
+                ];
+                break;
+            }
+        }
+        
         $payload = [
             'schema' => $config['schema_version'] ?? 1,
             'version' => $version,
             'filter' => $filter_key,
+            'filter_config' => $filter_config,
             'filters' => $request['filters'] ?? [],
             'search' => $request['search'] ?? '',
             'sort' => $request['sort'] ?? '',
