@@ -238,8 +238,9 @@
       // but $results is already the .products container, so we only need the inner <li> items
       var $temp = $('<div></div>').html(payload.html);
       
-      // First, try to find the .products wrapper and extract its direct children (<li> items)
-      var $wrapper = $temp.find('ul.products').first();
+      // First, try to find the .products wrapper (handles variations like "products columns-3")
+      // Use attribute selector to match any ul with class containing "products"
+      var $wrapper = $temp.find('ul[class*="products"]').first();
       if ($wrapper.length) {
         // Extract only direct children (<li> items) to avoid nested structures
         $results.empty().append($wrapper.children('li'));
