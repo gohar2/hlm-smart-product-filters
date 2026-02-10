@@ -44,22 +44,33 @@ final class ProductRenderer
 
     public function render_result_count(WP_Query $query): string
     {
-        if (!function_exists('wc_get_template')) {
-            return '';
+        $total = (int) $query->found_posts;
+        $per_page = (int) $query->get('posts_per_page');
+        $current_page = max(1, (int) $query->get('paged'));
+        $first = $per_page > 0 ? (($current_page - 1) * $per_page) + 1 : 1;
+        $last = $per_page > 0 ? min($current_page * $per_page, $total) : $total;
+
+        if ($total === 0) {
+            $text = __('No products found', 'hlm-smart-product-filters');
+        } elseif ($total === 1) {
+            $text = __('Showing the single result', 'hlm-smart-product-filters');
+        } elseif ($per_page === 0 || $first === $last) {
+            $text = sprintf(
+                /* translators: %d: total number of products */
+                __('Showing all %d results', 'hlm-smart-product-filters'),
+                $total
+            );
+        } else {
+            $text = sprintf(
+                /* translators: 1: first product number, 2: last product number, 3: total products */
+                __('Showing %1$d–%2$d of %3$d results', 'hlm-smart-product-filters'),
+                $first,
+                $last,
+                $total
+            );
         }
 
-        $previous_query = $GLOBALS['wp_query'] ?? null;
-        $GLOBALS['wp_query'] = $query;
-
-        ob_start();
-        wc_get_template('loop/result-count.php');
-        $html = ob_get_clean();
-
-        if ($previous_query instanceof WP_Query) {
-            $GLOBALS['wp_query'] = $previous_query;
-        }
-
-        return $html;
+        return '<p class="woocommerce-result-count" aria-hidden="false">' . esc_html($text) . '</p>';
     }
 
     public function render_pagination(WP_Query $query, array $request = []): string

@@ -92,12 +92,23 @@ final class FilterProcessor
                 continue;
             }
 
-            $tax_query[] = [
+            $tax_clause = [
                 'taxonomy' => $taxonomy,
                 'field' => 'term_id',
                 'terms' => $term_ids,
                 'operator' => $operator,
             ];
+
+            // Handle include_children for hierarchical taxonomies (like product_cat)
+            // Use WordPress's built-in include_children parameter for better performance and accuracy
+            if (($taxonomy === 'product_cat' || is_taxonomy_hierarchical($taxonomy)) && 
+                !empty($filter['visibility']['include_children'])) {
+                $tax_clause['include_children'] = true;
+            } else {
+                $tax_clause['include_children'] = false;
+            }
+
+            $tax_query[] = $tax_clause;
         }
 
         if ($attribute_filters && $this->lookup_table_exists()) {
@@ -152,7 +163,16 @@ final class FilterProcessor
             $defaults['post__in'] = $post_in ? $post_in : [0];
         }
 
-        if (count($tax_query) > 1) {
+        // Only add tax_query if we have actual filter clauses (not just the relation)
+        $has_filters = false;
+        foreach ($tax_query as $clause) {
+            if (is_array($clause) && isset($clause['taxonomy'])) {
+                $has_filters = true;
+                break;
+            }
+        }
+        
+        if ($has_filters) {
             $defaults['tax_query'] = $tax_query;
         }
 
