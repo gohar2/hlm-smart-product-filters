@@ -451,7 +451,7 @@
 .hlm-tab-panels {
   position: relative;
   min-height: 200px;
-  max-width: 900px;
+  max-width: 100%;
 }
 
 /* Settings page specific styles */
@@ -464,18 +464,40 @@
 }
 
 .hlm-settings-section {
-  padding: 0;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+.hlm-settings-tabs .hlm-settings-section,
+.hlm-tab-panel .hlm-settings-section,
+#hlm-settings-form .hlm-settings-section {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 5px 5px !important;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .hlm-settings-section,
+  .hlm-settings-tabs .hlm-settings-section,
+  .hlm-tab-panel .hlm-settings-section,
+  #hlm-settings-form .hlm-settings-section {
+    grid-template-columns: 1fr !important;
+    gap: 5px !important;
+  }
 }
 
 .hlm-settings-group-title {
   font-size: 14px;
   font-weight: 600;
   color: #334155;
-  margin: 40px 0 20px 0;
+  /* margin: 40px 0 20px 0; */
   padding-bottom: 10px;
   border-bottom: 2px solid #e2e8f0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
 }
 
 .hlm-settings-group-title:first-child {
@@ -483,34 +505,41 @@
 }
 
 .hlm-settings-field {
-  margin-bottom: 24px;
-  max-width: 600px;
-  padding-bottom: 16px;
+  margin-bottom: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-bottom: 20px !important;
   border-bottom: 1px solid #f1f5f9;
+  clear: both;
+  display: block;
 }
 
 .hlm-settings-field:last-child {
   border-bottom: none;
-  padding-bottom: 0;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .hlm-settings-label {
-  display: block;
+  display: block !important;
   font-weight: 500;
   color: #1e293b;
-  margin-bottom: 6px;
+  margin-bottom: 10px !important;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .hlm-settings-field input[type="text"],
 .hlm-settings-field input[type="number"],
 .hlm-settings-field select {
-  width: 100%;
-  max-width: 400px;
-  padding: 8px 12px;
+  width: 100% !important;
+  max-width: 200px !important;
+  padding: 10px 14px !important;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   font-size: 13px;
+  margin-top: 4px !important;
+  display: block;
 }
 
 .hlm-settings-field input[type="text"]:focus,
@@ -529,9 +558,10 @@
 }
 
 .hlm-settings-field .hlm-checkbox-wrapper {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
-  margin-top: 4px;
+  margin-top: 8px !important;
+  margin-bottom: 4px !important;
 }
 
 .hlm-settings-field .hlm-checkbox-wrapper input[type="checkbox"] {
@@ -540,7 +570,7 @@
 
 .hlm-tab-panel {
   display: none !important;
-  padding: 30px;
+  padding: 30px !important;
   animation: hlm-fadeIn 0.2s ease;
 }
 
@@ -551,6 +581,10 @@
 }
 
 /* Ensure active tab panel is always visible in settings */
+.hlm-settings-tabs .hlm-tab-panel {
+  display: none !important;
+}
+
 .hlm-settings-tabs .hlm-tab-panel.active {
   display: block !important;
   visibility: visible !important;
