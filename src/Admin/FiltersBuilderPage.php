@@ -918,12 +918,12 @@ final class FiltersBuilderPage
         return [
             'standard' => [
                 'name' => __('Standard Shop', 'hlm-smart-product-filters'),
-                'description' => __('Category, color swatches, size, and price range - perfect for most stores.', 'hlm-smart-product-filters'),
+                'description' => __('Product categories, color swatches, size, and price range - perfect for most stores.', 'hlm-smart-product-filters'),
                 'icon' => 'dashicons-store',
                 'filters' => [
                     [
                         'id' => 'category',
-                        'label' => __('Category', 'hlm-smart-product-filters'),
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
                         'key' => 'category',
                         'type' => 'checkbox',
                         'data_source' => 'product_cat',
@@ -983,7 +983,7 @@ final class FiltersBuilderPage
                     ],
                     [
                         'id' => 'price',
-                        'label' => __('Price', 'hlm-smart-product-filters'),
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
                         'key' => 'price',
                         'type' => 'range',
                         'data_source' => 'meta',
@@ -1000,12 +1000,12 @@ final class FiltersBuilderPage
             ],
             'fashion' => [
                 'name' => __('Fashion & Apparel', 'hlm-smart-product-filters'),
-                'description' => __('Optimized for clothing stores with size, color, brand, and material filters.', 'hlm-smart-product-filters'),
+                'description' => __('Optimized for clothing stores with size, color, brand, gender, and price filters.', 'hlm-smart-product-filters'),
                 'icon' => 'dashicons-tag',
                 'filters' => [
                     [
                         'id' => 'category',
-                        'label' => __('Category', 'hlm-smart-product-filters'),
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
                         'key' => 'category',
                         'type' => 'checkbox',
                         'data_source' => 'product_cat',
@@ -1064,6 +1064,25 @@ final class FiltersBuilderPage
                         ],
                     ],
                     [
+                        'id' => 'gender',
+                        'label' => __('Gender', 'hlm-smart-product-filters'),
+                        'key' => 'gender',
+                        'type' => 'checkbox',
+                        'data_source' => 'attribute',
+                        'source_key' => 'gender',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
                         'id' => 'brand',
                         'label' => __('Brand', 'hlm-smart-product-filters'),
                         'key' => 'brand',
@@ -1084,7 +1103,7 @@ final class FiltersBuilderPage
                     ],
                     [
                         'id' => 'price',
-                        'label' => __('Price', 'hlm-smart-product-filters'),
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
                         'key' => 'price',
                         'type' => 'range',
                         'data_source' => 'meta',
@@ -1099,27 +1118,88 @@ final class FiltersBuilderPage
                     ],
                 ],
             ],
-            'electronics' => [
-                'name' => __('Electronics & Tech', 'hlm-smart-product-filters'),
-                'description' => __('Brand, category, price, and tags for tech products.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-laptop',
+            'comprehensive' => [
+                'name' => __('Comprehensive Shop', 'hlm-smart-product-filters'),
+                'description' => __('Categories, tags, color swatches, size, brand, and price range.', 'hlm-smart-product-filters'),
+                'icon' => 'dashicons-grid-view',
                 'filters' => [
                     [
                         'id' => 'category',
-                        'label' => __('Category', 'hlm-smart-product-filters'),
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
                         'key' => 'category',
-                        'type' => 'dropdown',
+                        'type' => 'checkbox',
                         'data_source' => 'product_cat',
                         'source_key' => 'product_cat',
                         'behavior' => [
-                            'multi_select' => false,
+                            'multi_select' => true,
+                            'operator' => 'OR',
                         ],
                         'visibility' => [
                             'hide_empty' => true,
                             'include_children' => true,
                         ],
                         'ui' => [
-                            'style' => 'dropdown',
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'tags',
+                        'label' => __('Product Tags', 'hlm-smart-product-filters'),
+                        'key' => 'tags',
+                        'type' => 'checkbox',
+                        'data_source' => 'product_tag',
+                        'source_key' => 'product_tag',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'color',
+                        'label' => __('Color', 'hlm-smart-product-filters'),
+                        'key' => 'color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'size',
+                        'label' => __('Size', 'hlm-smart-product-filters'),
+                        'key' => 'size',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'size',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
                         ],
                     ],
                     [
@@ -1143,7 +1223,7 @@ final class FiltersBuilderPage
                     ],
                     [
                         'id' => 'price',
-                        'label' => __('Price', 'hlm-smart-product-filters'),
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
                         'key' => 'price',
                         'type' => 'range',
                         'data_source' => 'meta',
@@ -1156,13 +1236,40 @@ final class FiltersBuilderPage
                             'style' => 'range',
                         ],
                     ],
+                ],
+            ],
+            'pet_focused' => [
+                'name' => __('Pet & Dog Products', 'hlm-smart-product-filters'),
+                'description' => __('Breeds, themes, colors, sizes, and price for pet products.', 'hlm-smart-product-filters'),
+                'icon' => 'dashicons-heart',
+                'filters' => [
                     [
-                        'id' => 'tags',
-                        'label' => __('Features', 'hlm-smart-product-filters'),
-                        'key' => 'tags',
+                        'id' => 'category',
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
+                        'key' => 'category',
                         'type' => 'checkbox',
-                        'data_source' => 'product_tag',
-                        'source_key' => 'product_tag',
+                        'data_source' => 'product_cat',
+                        'source_key' => 'product_cat',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                            'include_children' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'breeds',
+                        'label' => __('Breeds', 'hlm-smart-product-filters'),
+                        'key' => 'breeds',
+                        'type' => 'checkbox',
+                        'data_source' => 'taxonomy',
+                        'source_key' => 'breeds',
                         'behavior' => [
                             'multi_select' => true,
                             'operator' => 'OR',
@@ -1173,6 +1280,499 @@ final class FiltersBuilderPage
                         'ui' => [
                             'style' => 'list',
                             'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'theme',
+                        'label' => __('Themes', 'hlm-smart-product-filters'),
+                        'key' => 'theme',
+                        'type' => 'checkbox',
+                        'data_source' => 'taxonomy',
+                        'source_key' => 'theme',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'color',
+                        'label' => __('Color', 'hlm-smart-product-filters'),
+                        'key' => 'color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'size',
+                        'label' => __('Size', 'hlm-smart-product-filters'),
+                        'key' => 'size',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'size',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
+                        ],
+                    ],
+                    [
+                        'id' => 'price',
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
+                        'key' => 'price',
+                        'type' => 'range',
+                        'data_source' => 'meta',
+                        'source_key' => '_price',
+                        'behavior' => [
+                            'multi_select' => false,
+                        ],
+                        'visibility' => [],
+                        'ui' => [
+                            'style' => 'range',
+                        ],
+                    ],
+                ],
+            ],
+            'brand_focused' => [
+                'name' => __('Brand & Design Focused', 'hlm-smart-product-filters'),
+                'description' => __('Brands, design, style, and color filters for brand-conscious shoppers.', 'hlm-smart-product-filters'),
+                'icon' => 'dashicons-star-filled',
+                'filters' => [
+                    [
+                        'id' => 'product_brand',
+                        'label' => __('Brands', 'hlm-smart-product-filters'),
+                        'key' => 'product_brand',
+                        'type' => 'checkbox',
+                        'data_source' => 'taxonomy',
+                        'source_key' => 'product_brand',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'brand',
+                        'label' => __('Brand (Attribute)', 'hlm-smart-product-filters'),
+                        'key' => 'brand',
+                        'type' => 'checkbox',
+                        'data_source' => 'attribute',
+                        'source_key' => 'brand',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'design',
+                        'label' => __('Design', 'hlm-smart-product-filters'),
+                        'key' => 'design',
+                        'type' => 'checkbox',
+                        'data_source' => 'taxonomy',
+                        'source_key' => 'design',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'style',
+                        'label' => __('Style', 'hlm-smart-product-filters'),
+                        'key' => 'style',
+                        'type' => 'checkbox',
+                        'data_source' => 'attribute',
+                        'source_key' => 'style',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'color',
+                        'label' => __('Color', 'hlm-smart-product-filters'),
+                        'key' => 'color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'price',
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
+                        'key' => 'price',
+                        'type' => 'range',
+                        'data_source' => 'meta',
+                        'source_key' => '_price',
+                        'behavior' => [
+                            'multi_select' => false,
+                        ],
+                        'visibility' => [],
+                        'ui' => [
+                            'style' => 'range',
+                        ],
+                    ],
+                ],
+            ],
+            'apparel_focused' => [
+                'name' => __('Apparel & Clothing', 'hlm-smart-product-filters'),
+                'description' => __('Size, color, gender, collar color, and neck size for clothing items.', 'hlm-smart-product-filters'),
+                'icon' => 'dashicons-admin-users',
+                'filters' => [
+                    [
+                        'id' => 'category',
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
+                        'key' => 'category',
+                        'type' => 'checkbox',
+                        'data_source' => 'product_cat',
+                        'source_key' => 'product_cat',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                            'include_children' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'size',
+                        'label' => __('Size', 'hlm-smart-product-filters'),
+                        'key' => 'size',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'size',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
+                        ],
+                    ],
+                    [
+                        'id' => 'sizes',
+                        'label' => __('Sizes', 'hlm-smart-product-filters'),
+                        'key' => 'sizes',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'sizes',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
+                        ],
+                    ],
+                    [
+                        'id' => 'color',
+                        'label' => __('Color', 'hlm-smart-product-filters'),
+                        'key' => 'color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'colors',
+                        'label' => __('Colors', 'hlm-smart-product-filters'),
+                        'key' => 'colors',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'colors',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'gender',
+                        'label' => __('Gender', 'hlm-smart-product-filters'),
+                        'key' => 'gender',
+                        'type' => 'checkbox',
+                        'data_source' => 'attribute',
+                        'source_key' => 'gender',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'collar_color',
+                        'label' => __('Collar Color', 'hlm-smart-product-filters'),
+                        'key' => 'collar-color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'collar-color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'neck_size',
+                        'label' => __('Neck Size', 'hlm-smart-product-filters'),
+                        'key' => 'neck-size',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'neck-size',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
+                        ],
+                    ],
+                    [
+                        'id' => 'price',
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
+                        'key' => 'price',
+                        'type' => 'range',
+                        'data_source' => 'meta',
+                        'source_key' => '_price',
+                        'behavior' => [
+                            'multi_select' => false,
+                        ],
+                        'visibility' => [],
+                        'ui' => [
+                            'style' => 'range',
+                        ],
+                    ],
+                ],
+            ],
+            'accessories_focused' => [
+                'name' => __('Accessories & Jewelry', 'hlm-smart-product-filters'),
+                'description' => __('Chain size, collar color, style, and design for accessories.', 'hlm-smart-product-filters'),
+                'icon' => 'dashicons-admin-appearance',
+                'filters' => [
+                    [
+                        'id' => 'category',
+                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
+                        'key' => 'category',
+                        'type' => 'checkbox',
+                        'data_source' => 'product_cat',
+                        'source_key' => 'product_cat',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                            'include_children' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'chain_size',
+                        'label' => __('Chain Size', 'hlm-smart-product-filters'),
+                        'key' => 'chain-size',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'chain-size',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'text',
+                            'show_more_threshold' => 10,
+                        ],
+                    ],
+                    [
+                        'id' => 'collar_color',
+                        'label' => __('Collar Color', 'hlm-smart-product-filters'),
+                        'key' => 'collar-color',
+                        'type' => 'swatch',
+                        'data_source' => 'attribute',
+                        'source_key' => 'collar-color',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'swatch',
+                            'swatch_type' => 'color',
+                            'show_more_threshold' => 8,
+                        ],
+                    ],
+                    [
+                        'id' => 'style',
+                        'label' => __('Style', 'hlm-smart-product-filters'),
+                        'key' => 'style',
+                        'type' => 'checkbox',
+                        'data_source' => 'attribute',
+                        'source_key' => 'style',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'design',
+                        'label' => __('Design', 'hlm-smart-product-filters'),
+                        'key' => 'design',
+                        'type' => 'checkbox',
+                        'data_source' => 'taxonomy',
+                        'source_key' => 'design',
+                        'behavior' => [
+                            'multi_select' => true,
+                            'operator' => 'OR',
+                        ],
+                        'visibility' => [
+                            'hide_empty' => true,
+                        ],
+                        'ui' => [
+                            'style' => 'list',
+                            'show_more_threshold' => 5,
+                        ],
+                    ],
+                    [
+                        'id' => 'price',
+                        'label' => __('Price Range', 'hlm-smart-product-filters'),
+                        'key' => 'price',
+                        'type' => 'range',
+                        'data_source' => 'meta',
+                        'source_key' => '_price',
+                        'behavior' => [
+                            'multi_select' => false,
+                        ],
+                        'visibility' => [],
+                        'ui' => [
+                            'style' => 'range',
                         ],
                     ],
                 ],
