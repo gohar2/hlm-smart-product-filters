@@ -233,7 +233,26 @@
     var showMoreState = saveShowMoreState();
 
     if ($results.length && payload.html !== undefined) {
-      $results.html(payload.html);
+      // Extract only the <li> items from payload.html to avoid duplicate <ul> wrappers
+      // payload.html contains the full <ul class="products">...</ul> wrapper from WooCommerce
+      // but $results is already the .products container, so we only need the inner <li> items
+      var $temp = $('<div></div>').html(payload.html);
+      
+      // First, try to find the .products wrapper and extract its direct children (<li> items)
+      var $wrapper = $temp.find('ul.products').first();
+      if ($wrapper.length) {
+        // Extract only direct children (<li> items) to avoid nested structures
+        $results.empty().append($wrapper.children('li'));
+      } else {
+        // Fallback: if no .products wrapper found, try to find any <li> items
+        var $productItems = $temp.find('li');
+        if ($productItems.length > 0) {
+          $results.empty().append($productItems);
+        } else {
+          // Last resort: use the HTML as-is (shouldn't happen, but safe fallback)
+          $results.html(payload.html);
+        }
+      }
     }
 
     if ($pagination.length && payload.pagination !== undefined) {
