@@ -67,25 +67,32 @@ final class Config
         $defaults = $this->defaults();
         $stored = get_option(self::OPTION_KEY, []);
         $stored = is_array($stored) ? $stored : [];
-        $global = $input['global'] ?? [];
+        
+        // Ensure we have a global array - WordPress Settings API might merge with existing values
+        $global = [];
+        if (isset($input['global']) && is_array($input['global'])) {
+            $global = $input['global'];
+        }
+        
         $filters_input = $input['filters'] ?? ($stored['filters'] ?? []);
 
         $sanitized = [
             'schema_version' => self::SCHEMA_VERSION,
             'global' => [
-                'enable_ajax' => $this->to_bool($global['enable_ajax'] ?? $defaults['global']['enable_ajax']),
-                'enable_cache' => $this->to_bool($global['enable_cache'] ?? $defaults['global']['enable_cache']),
+                // For checkboxes: if key exists in input (even if "0"), use it; otherwise use default
+                'enable_ajax' => array_key_exists('enable_ajax', $global) ? $this->to_bool($global['enable_ajax']) : $defaults['global']['enable_ajax'],
+                'enable_cache' => array_key_exists('enable_cache', $global) ? $this->to_bool($global['enable_cache']) : $defaults['global']['enable_cache'],
                 'cache_ttl_seconds' => $this->to_int($global['cache_ttl_seconds'] ?? $defaults['global']['cache_ttl_seconds'], 0),
                 'products_per_page' => $this->to_int($global['products_per_page'] ?? $defaults['global']['products_per_page'], 1),
                 'default_sort' => $this->sanitize_key($global['default_sort'] ?? $defaults['global']['default_sort']),
-                'debug_mode' => $this->to_bool($global['debug_mode'] ?? $defaults['global']['debug_mode']),
-                'enable_apply_button' => $this->to_bool($global['enable_apply_button'] ?? $defaults['global']['enable_apply_button']),
-                'enable_counts' => $this->to_bool($global['enable_counts'] ?? $defaults['global']['enable_counts']),
+                'debug_mode' => array_key_exists('debug_mode', $global) ? $this->to_bool($global['debug_mode']) : $defaults['global']['debug_mode'],
+                'enable_apply_button' => array_key_exists('enable_apply_button', $global) ? $this->to_bool($global['enable_apply_button']) : $defaults['global']['enable_apply_button'],
+                'enable_counts' => array_key_exists('enable_counts', $global) ? $this->to_bool($global['enable_counts']) : $defaults['global']['enable_counts'],
                 'render_mode' => $this->sanitize_enum($global['render_mode'] ?? $defaults['global']['render_mode'], ['shortcode', 'auto', 'both']),
                 'auto_hook' => sanitize_text_field((string) ($global['auto_hook'] ?? $defaults['global']['auto_hook'])),
-                'auto_on_shop' => $this->to_bool($global['auto_on_shop'] ?? $defaults['global']['auto_on_shop']),
-                'auto_on_categories' => $this->to_bool($global['auto_on_categories'] ?? $defaults['global']['auto_on_categories']),
-                'auto_on_tags' => $this->to_bool($global['auto_on_tags'] ?? $defaults['global']['auto_on_tags']),
+                'auto_on_shop' => array_key_exists('auto_on_shop', $global) ? $this->to_bool($global['auto_on_shop']) : $defaults['global']['auto_on_shop'],
+                'auto_on_categories' => array_key_exists('auto_on_categories', $global) ? $this->to_bool($global['auto_on_categories']) : $defaults['global']['auto_on_categories'],
+                'auto_on_tags' => array_key_exists('auto_on_tags', $global) ? $this->to_bool($global['auto_on_tags']) : $defaults['global']['auto_on_tags'],
                 'product_render_mode' => $this->sanitize_enum($global['product_render_mode'] ?? $defaults['global']['product_render_mode'], ['woocommerce', 'elementor']),
                 'elementor_template_id' => $this->to_int($global['elementor_template_id'] ?? $defaults['global']['elementor_template_id'], 0),
                 'ui' => [
