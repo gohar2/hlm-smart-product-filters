@@ -10,6 +10,7 @@ use HLM\Filters\Ajax\FilterAjax;
 use HLM\Filters\Cache\CacheInvalidator;
 use HLM\Filters\Frontend\Assets;
 use HLM\Filters\Frontend\AutoInjector;
+use HLM\Filters\Frontend\QueryModifier;
 use HLM\Filters\Rendering\Shortcode;
 use HLM\Filters\Support\Config;
 
@@ -52,6 +53,7 @@ final class Plugin
         (new FilterAjax($this->config))->register();
         (new Assets($this->config))->register();
         (new AutoInjector($this->config))->register();
+        (new QueryModifier($this->config))->register();
         (new CacheInvalidator())->register();
 
         do_action('hlm_filters_boot');

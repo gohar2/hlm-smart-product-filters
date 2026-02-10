@@ -105,32 +105,24 @@ final class FacetCalculator
             foreach ($all_terms as $term) {
                 $term_id = (int) $term->term_id;
                 
-                // Use WP_Query to count products matching this term (with include_children if enabled)
-                // This ensures the count matches exactly what the filter query would return
-                $count_query_args = [
-                    'post_type' => 'product',
-                    'post_status' => 'publish',
-                    'post__in' => $object_ids, // Only count products in our filtered set
-                    'fields' => 'ids',
-                    'posts_per_page' => -1,
-                    'no_found_rows' => true,
-                    'update_post_meta_cache' => false,
-                    'update_post_term_cache' => false,
-                    'tax_query' => [
-                        [
-                            'taxonomy' => $taxonomy,
-                            'field' => 'term_id',
-                            'terms' => [$term_id],
-                            'operator' => 'IN',
-                            'include_children' => ($include_children && $is_hierarchical) ? true : false,
-                        ],
-                    ],
-                ];
+                // Create a request that includes this term in the filter
+                // This simulates what happens when the user selects this term
+                $test_request = $request_without;
+                $test_request['filters'] = $test_request['filters'] ?? [];
+                $test_request['filters'][$key] = [$term->slug]; // Use slug to match how filters are normalized
                 
-                $count_query = new WP_Query($count_query_args);
-                $count = count($count_query->posts);
+                // Build query args with this term included - this uses the exact same logic as the actual filter
+                $test_args = $this->processor->build_args($config, $test_request);
+                $test_args['fields'] = 'ids';
+                $test_args['posts_per_page'] = -1;
+                $test_args['no_found_rows'] = true;
+                $test_args['update_post_meta_cache'] = false;
+                $test_args['update_post_term_cache'] = false;
+                
+                $test_query = new WP_Query($test_args);
+                $count = count($test_query->posts);
 
-                // Only include terms that have products in our filtered set
+                // Only include terms that have products
                 if ($count > 0) {
                     $counts[$term_id] = $count;
                 }

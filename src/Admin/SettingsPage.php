@@ -152,10 +152,12 @@ final class SettingsPage
             function () use ($key) {
                 $config = $this->config->get();
                 $value = $config['global'][$key] ?? false;
+                $field_name = Config::OPTION_KEY . '[global][' . esc_attr($key) . ']';
+                // Hidden field ensures unchecked values are saved as 0
+                printf('<input type="hidden" name="%s" value="0">', esc_attr($field_name));
                 printf(
-                    '<label><input type="checkbox" name="%s[global][%s]" value="1" %s> %s</label>',
-                    esc_attr(Config::OPTION_KEY),
-                    esc_attr($key),
+                    '<label><input type="checkbox" name="%s" value="1" %s> %s</label>',
+                    esc_attr($field_name),
                     checked($value, true, false),
                     esc_html__('Enabled', 'hlm-smart-product-filters')
                 );
