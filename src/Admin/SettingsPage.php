@@ -40,10 +40,16 @@ final class SettingsPage
         }
 
         wp_enqueue_style('wp-color-picker');
+        wp_enqueue_style(
+            'hlm-filters-admin',
+            HLM_FILTERS_URL . 'assets/css/admin-filters.css',
+            [],
+            HLM_FILTERS_VERSION
+        );
         wp_enqueue_script(
             'hlm-filters-admin-settings',
             HLM_FILTERS_URL . 'assets/js/admin-settings.js',
-            ['wp-color-picker'],
+            ['wp-color-picker', 'jquery'],
             HLM_FILTERS_VERSION,
             true
         );
@@ -135,12 +141,250 @@ final class SettingsPage
         }
 
         echo '<div class="wrap">';
-        echo '<h1>' . esc_html__('HLM Product Filters', 'hlm-smart-product-filters') . '</h1>';
-        echo '<form method="post" action="options.php">';
+        echo '<h1>' . esc_html__('HLM Product Filters Settings', 'hlm-smart-product-filters') . '</h1>';
+        echo '<form method="post" action="options.php" id="hlm-settings-form">';
         settings_fields('hlm_filters_settings');
-        do_settings_sections('hlm_filters_settings');
+        
+        // Tab navigation
+        echo '<div class="hlm-settings-tabs">';
+        echo '<div class="hlm-tab-nav" role="tablist">';
+        echo '<button type="button" class="hlm-tab-button active" role="tab" aria-selected="true" data-tab="general">' . esc_html__('General', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="ui">' . esc_html__('UI', 'hlm-smart-product-filters') . '</button>';
+        echo '</div>';
+        
+        // Tab panels
+        echo '<div class="hlm-tab-panels">';
+        
+        // General tab
+        echo '<div class="hlm-tab-panel active" role="tabpanel" data-tab="general">';
+        echo '<div class="hlm-settings-section">';
+        $this->render_general_settings();
+        echo '</div>';
+        echo '</div>';
+        
+        // UI tab
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="ui">';
+        echo '<div class="hlm-settings-section">';
+        $this->render_ui_settings();
+        echo '</div>';
+        echo '</div>';
+        
+        echo '</div>'; // .hlm-tab-panels
+        echo '</div>'; // .hlm-settings-tabs
+        
         submit_button();
         echo '</form>';
+        echo '</div>';
+    }
+    
+    private function render_general_settings(): void
+    {
+        $config = $this->config->get();
+        
+        // Performance & Behavior
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Performance & Behavior', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('enable_ajax', 'checkbox');
+        $this->render_field('enable_cache', 'checkbox');
+        $this->render_field('cache_ttl_seconds', 'text');
+        
+        // Product Display
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Product Display', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('products_per_page', 'text');
+        $this->render_field('default_sort', 'text');
+        $this->render_field('product_render_mode', 'select', [
+            'woocommerce' => __('WooCommerce loop', 'hlm-smart-product-filters'),
+            'elementor' => __('Elementor template', 'hlm-smart-product-filters'),
+        ]);
+        $this->render_elementor_template_field_inline();
+        
+        // Filter Behavior
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Filter Behavior', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('enable_apply_button', 'checkbox');
+        $this->render_field('enable_counts', 'checkbox');
+        
+        // Auto Injection
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Auto Injection', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('render_mode', 'select', [
+            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
+            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
+            'both' => __('Shortcode + auto inject', 'hlm-smart-product-filters'),
+        ]);
+        $this->render_field('auto_hook', 'text');
+        $this->render_field('auto_on_shop', 'checkbox');
+        $this->render_field('auto_on_categories', 'checkbox');
+        $this->render_field('auto_on_tags', 'checkbox');
+        
+        // Debug
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Debug', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('debug_mode', 'checkbox');
+    }
+    
+    private function render_ui_settings(): void
+    {
+        // Colors
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Colors', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('ui][accent_color', 'color', [], __('Primary color for buttons, links, and accents', 'hlm-smart-product-filters'));
+        $this->render_field('ui][background_color', 'color', [], __('Main background color of the filter panel', 'hlm-smart-product-filters'));
+        $this->render_field('ui][text_color', 'color', [], __('Main text color for filter labels and content', 'hlm-smart-product-filters'));
+        $this->render_field('ui][border_color', 'color', [], __('Color for borders around filter panels and elements', 'hlm-smart-product-filters'));
+        $this->render_field('ui][muted_text_color', 'color', [], __('Color for secondary text like counts and hints', 'hlm-smart-product-filters'));
+        $this->render_field('ui][panel_gradient', 'color', [], __('CSS gradient for filter panel backgrounds (e.g., linear-gradient(...))', 'hlm-smart-product-filters'));
+        
+        // Layout & Spacing
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Layout & Spacing', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('ui][radius', 'text', [], __('Border radius for rounded corners (default: 10px)', 'hlm-smart-product-filters'));
+        $this->render_field('ui][spacing', 'text', [], __('Base spacing unit used throughout filters (default: 12px)', 'hlm-smart-product-filters'));
+        $this->render_field('ui][density', 'select', [
+            'compact' => __('Compact - Tighter spacing for more filters', 'hlm-smart-product-filters'),
+            'comfy' => __('Comfy - Balanced spacing (recommended)', 'hlm-smart-product-filters'),
+            'airy' => __('Airy - More spacious layout', 'hlm-smart-product-filters'),
+        ], __('Controls the spacing density of filter elements', 'hlm-smart-product-filters'));
+        
+        // Style
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Style', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('ui][header_style', 'select', [
+            'pill' => __('Pill - Rounded background badge', 'hlm-smart-product-filters'),
+            'underline' => __('Underline - Accent line below label', 'hlm-smart-product-filters'),
+            'plain' => __('Plain - No special styling', 'hlm-smart-product-filters'),
+        ], __('Visual style for filter panel headers/labels', 'hlm-smart-product-filters'));
+        $this->render_field('ui][list_layout', 'select', [
+            'stacked' => __('Stacked - Each item on a new line', 'hlm-smart-product-filters'),
+            'inline' => __('Inline - Items flow horizontally', 'hlm-smart-product-filters'),
+        ], __('Default layout for checkbox list filters (can be overridden per filter)', 'hlm-smart-product-filters'));
+        
+        // Typography
+        echo '<h2 class="hlm-settings-group-title">' . esc_html__('Typography', 'hlm-smart-product-filters') . '</h2>';
+        $this->render_field('ui][font_scale', 'text', [], __('Font size multiplier (e.g., 100 = normal, 110 = 10% larger)', 'hlm-smart-product-filters'));
+        $this->render_field('ui][font_family', 'text', [], __('CSS font-family value (e.g., "Arial, sans-serif" or "inherit")', 'hlm-smart-product-filters'));
+    }
+    
+    private function render_field(string $key, string $type, array $options = [], string $description = ''): void
+    {
+        $config = $this->config->get();
+        $field_name = Config::OPTION_KEY . '[global][' . esc_attr($key) . ']';
+        $label = $this->get_field_label($key);
+        
+        echo '<div class="hlm-settings-field">';
+        echo '<label class="hlm-settings-label">' . esc_html($label) . '</label>';
+        
+        if ($type === 'checkbox') {
+            $value = $this->get_nested_value($config['global'], $key);
+            $value = $value === '' ? false : (bool) $value;
+            printf('<input type="hidden" name="%s" value="0">', esc_attr($field_name));
+            echo '<label class="hlm-checkbox-wrapper">';
+            printf(
+                '<input type="checkbox" name="%s" value="1" %s> %s',
+                esc_attr($field_name),
+                checked($value, true, false),
+                esc_html__('Enabled', 'hlm-smart-product-filters')
+            );
+            echo '</label>';
+        } elseif ($type === 'text') {
+            $value = $this->get_nested_value($config['global'], $key);
+            printf(
+                '<input type="text" class="regular-text" name="%s" value="%s">',
+                esc_attr($field_name),
+                esc_attr((string) $value)
+            );
+        } elseif ($type === 'color') {
+            $value = $this->get_nested_value($config['global'], $key);
+            printf(
+                '<input type="text" class="regular-text hlm-color-field" name="%s" value="%s" placeholder="#0f766e">',
+                esc_attr($field_name),
+                esc_attr((string) $value)
+            );
+        } elseif ($type === 'select') {
+            $value = $this->get_nested_value($config['global'], $key);
+            echo '<select name="' . esc_attr($field_name) . '">';
+            foreach ($options as $option_value => $option_label) {
+                printf(
+                    '<option value="%s" %s>%s</option>',
+                    esc_attr($option_value),
+                    selected($value, $option_value, false),
+                    esc_html($option_label)
+                );
+            }
+            echo '</select>';
+        }
+        
+        if ($description) {
+            echo '<p class="description">' . esc_html($description) . '</p>';
+        }
+        
+        echo '</div>';
+    }
+    
+    private function get_field_label(string $key): string
+    {
+        $labels = [
+            'enable_ajax' => __('Enable AJAX filtering', 'hlm-smart-product-filters'),
+            'enable_cache' => __('Enable caching', 'hlm-smart-product-filters'),
+            'cache_ttl_seconds' => __('Cache TTL (seconds)', 'hlm-smart-product-filters'),
+            'products_per_page' => __('Products per page', 'hlm-smart-product-filters'),
+            'default_sort' => __('Default sort', 'hlm-smart-product-filters'),
+            'debug_mode' => __('Debug mode', 'hlm-smart-product-filters'),
+            'enable_apply_button' => __('Enable Apply button', 'hlm-smart-product-filters'),
+            'enable_counts' => __('Enable counts', 'hlm-smart-product-filters'),
+            'render_mode' => __('Render mode', 'hlm-smart-product-filters'),
+            'auto_hook' => __('Auto inject hook', 'hlm-smart-product-filters'),
+            'auto_on_shop' => __('Auto inject on shop', 'hlm-smart-product-filters'),
+            'auto_on_categories' => __('Auto inject on category archives', 'hlm-smart-product-filters'),
+            'auto_on_tags' => __('Auto inject on tag archives', 'hlm-smart-product-filters'),
+            'product_render_mode' => __('Product render mode', 'hlm-smart-product-filters'),
+            'ui][accent_color' => __('Accent color', 'hlm-smart-product-filters'),
+            'ui][background_color' => __('Background color', 'hlm-smart-product-filters'),
+            'ui][text_color' => __('Text color', 'hlm-smart-product-filters'),
+            'ui][border_color' => __('Border color', 'hlm-smart-product-filters'),
+            'ui][muted_text_color' => __('Muted text color', 'hlm-smart-product-filters'),
+            'ui][panel_gradient' => __('Panel background gradient', 'hlm-smart-product-filters'),
+            'ui][radius' => __('Corner radius (px)', 'hlm-smart-product-filters'),
+            'ui][spacing' => __('Vertical spacing (px)', 'hlm-smart-product-filters'),
+            'ui][density' => __('Density', 'hlm-smart-product-filters'),
+            'ui][header_style' => __('Panel header style', 'hlm-smart-product-filters'),
+            'ui][list_layout' => __('Default list layout', 'hlm-smart-product-filters'),
+            'ui][font_scale' => __('Font scale (%)', 'hlm-smart-product-filters'),
+            'ui][font_family' => __('Font family', 'hlm-smart-product-filters'),
+        ];
+        
+        return $labels[$key] ?? $key;
+    }
+    
+    private function render_elementor_template_field_inline(): void
+    {
+        $config = $this->config->get();
+        $value = $this->get_nested_value($config['global'], 'elementor_template_id');
+        $field_name = Config::OPTION_KEY . '[global][elementor_template_id]';
+        
+        echo '<div class="hlm-settings-field">';
+        echo '<label class="hlm-settings-label">' . esc_html__('Elementor template', 'hlm-smart-product-filters');
+        
+        if (class_exists('\\Elementor\\Plugin')) {
+            $templates = get_posts([
+                'post_type' => 'elementor_library',
+                'post_status' => 'publish',
+                'numberposts' => -1,
+            ]);
+            
+            echo '<select name="' . esc_attr($field_name) . '">';
+            echo '<option value="0">' . esc_html__('Select template', 'hlm-smart-product-filters') . '</option>';
+            foreach ($templates as $template) {
+                printf(
+                    '<option value="%s" %s>%s</option>',
+                    esc_attr((string) $template->ID),
+                    selected((int) $value, (int) $template->ID, false),
+                    esc_html($template->post_title)
+                );
+            }
+            echo '</select>';
+        } else {
+            printf(
+                '<input type="text" class="regular-text" name="%s" value="%s" placeholder="123">',
+                esc_attr($field_name),
+                esc_attr((string) $value)
+            );
+        }
+        
+        echo '</label>';
         echo '</div>';
     }
 

@@ -454,13 +454,104 @@
   max-width: 900px;
 }
 
+/* Settings page specific styles */
+.hlm-settings-tabs {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  margin-top: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hlm-settings-section {
+  padding: 0;
+}
+
+.hlm-settings-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 40px 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hlm-settings-group-title:first-child {
+  margin-top: 0;
+}
+
+.hlm-settings-field {
+  margin-bottom: 24px;
+  max-width: 600px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hlm-settings-field:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.hlm-settings-label {
+  display: block;
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.hlm-settings-field input[type="text"],
+.hlm-settings-field input[type="number"],
+.hlm-settings-field select {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.hlm-settings-field input[type="text"]:focus,
+.hlm-settings-field input[type="number"]:focus,
+.hlm-settings-field select:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 1px rgba(15, 118, 110, 0.2);
+  outline: none;
+}
+
+.hlm-settings-field .description {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.hlm-settings-field .hlm-checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.hlm-settings-field .hlm-checkbox-wrapper input[type="checkbox"] {
+  margin-right: 6px;
+}
+
 .hlm-tab-panel {
   display: none !important;
-  padding: 20px;
+  padding: 30px;
   animation: hlm-fadeIn 0.2s ease;
 }
 
 .hlm-tab-panel.active {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure active tab panel is always visible in settings */
+.hlm-settings-tabs .hlm-tab-panel.active {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
