@@ -569,7 +569,7 @@
 }
 
 .hlm-tab-panel {
-  display: none !important;
+  display: none;
   padding: 30px !important;
   animation: hlm-fadeIn 0.2s ease;
 }
@@ -582,7 +582,7 @@
 
 /* Ensure active tab panel is always visible in settings */
 .hlm-settings-tabs .hlm-tab-panel {
-  display: none !important;
+  display: none;
 }
 
 .hlm-settings-tabs .hlm-tab-panel.active {
