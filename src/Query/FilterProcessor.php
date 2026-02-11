@@ -355,6 +355,7 @@ final class FilterProcessor
                 'taxonomy' => 'product_cat',
                 'field' => 'term_id',
                 'terms' => [$category_id],
+                'include_children' => true,
             ];
         }
 
@@ -363,6 +364,7 @@ final class FilterProcessor
                 'taxonomy' => 'product_tag',
                 'field' => 'term_id',
                 'terms' => [$tag_id],
+                'include_children' => false,
             ];
         }
 
@@ -371,6 +373,7 @@ final class FilterProcessor
                 'taxonomy' => $custom_taxonomy,
                 'field' => 'term_id',
                 'terms' => [$custom_term_id],
+                'include_children' => is_taxonomy_hierarchical($custom_taxonomy),
             ];
         }
 

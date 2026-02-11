@@ -8,7 +8,6 @@ use HLM\Filters\Admin\ImportExportPage;
 use HLM\Filters\Admin\AdminAjax;
 use HLM\Filters\Ajax\FilterAjax;
 use HLM\Filters\Cache\CacheInvalidator;
-use HLM\Filters\Frontend\Assets;
 use HLM\Filters\Frontend\AutoInjector;
 use HLM\Filters\Frontend\QueryModifier;
 use HLM\Filters\Rendering\Shortcode;
@@ -49,10 +48,15 @@ final class Plugin
             (new AdminAjax())->register();
         }
 
+        // Registers the Shortcode rendering and Assets are being enqueued in this class
         (new Shortcode($this->config))->register();
-        (new FilterAjax($this->config))->register();
-        (new Assets($this->config))->register();
+
+        // Registers the AutoInjector and sets rules for auto inject and then calls the above (Shortcode) class's method to render
         (new AutoInjector($this->config))->register();
+
+        // Registers the Ajax Handler actions
+        (new FilterAjax($this->config))->register();
+        
         (new QueryModifier($this->config))->register();
         (new CacheInvalidator())->register();
 

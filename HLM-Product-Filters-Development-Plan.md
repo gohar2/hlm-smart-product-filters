@@ -136,22 +136,6 @@ This document defines a complete, low-level development plan for an advanced, sm
   - dynamic form fields
   - WordPress color picker + media uploader
   - tag/category selectors with search
-
-## 6) Data layer and attribute discovery
-- Data\AttributeRepository:
-  - list available WooCommerce attributes
-  - map raw slugs to taxonomy names (pa_*)
-- Data\TaxonomyRepository:
-  - list product_cat tree
-  - list product_tag terms
-  - resolve term labels and counts
-- Attribute mapping defaults (initial release):
-  - Color -> pa_color (variation-aware)
-  - Breeds -> pa_breeds
-  - Size -> pa_size
-  - Gender -> pa_gender
-  - Category -> product_cat
-  - Tags -> product_tag
 - Admin can change mapping without code changes
 
 ## 7) Query engine (filter application)

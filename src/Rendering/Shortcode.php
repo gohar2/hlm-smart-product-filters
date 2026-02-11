@@ -2,6 +2,7 @@
 
 namespace HLM\Filters\Rendering;
 
+use HLM\Filters\Frontend\Assets;
 use HLM\Filters\Query\FilterValidator;
 use HLM\Filters\Query\FacetCalculator;
 use HLM\Filters\Support\Config;
@@ -58,6 +59,9 @@ final class Shortcode
 
     public function render_with_request(array $request, string $render_context = 'shortcode'): string
     {
+        // Enqueue Assets
+        (new Assets($this->config))->enqueue();
+
         $config = $this->config->get();
         $filters = is_array($config['filters'] ?? null) ? $config['filters'] : [];
 
@@ -298,7 +302,13 @@ final class Shortcode
     private function clear_url(): string
     {
         $params = $_GET;
-        unset($params['hlm_filters'], $params['paged'], $params['orderby']);
+        unset(
+            $params['hlm_filters'],
+            $params['paged'],
+            $params['orderby'],
+            $params['hlm_context'],
+            $params['hlm_render_context']
+        );
         $url = $this->current_url();
         $base = strtok($url, '?');
         if (!$params) {

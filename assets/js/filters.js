@@ -1,216 +1,83 @@
 (function ($) {
-  // Store current AJAX request for abort functionality
-  var currentRequest = null;
-  // Debounce timer for checkbox changes
-  var debounceTimer = null;
-  var DEBOUNCE_DELAY = 120;
+  'use strict';
+
+  /* ==========================================================================
+   * Configuration & State
+   * ========================================================================== */
+
+  var config = {
+    DEBOUNCE_DELAY: 120,
+    ERROR_DISMISS_MS: 5000,
+    SLIDE_DURATION: 200,
+    OVERLAY_CLEANUP_DELAY: 10,
+  };
+
+  var state = {
+    currentRequest: null,
+    debounceTimer: null,
+  };
+
+  var selectors = {
+    form: 'form.hlm-filters',
+    wrap: '.hlm-filters-wrap',
+    filter: '.hlm-filter',
+    showMore: '.hlm-show-more',
+    overlay: '.hlm-filters-loading',
+    toggle: '.hlm-filter-toggle',
+    pagination: '.woocommerce-pagination a',
+    swatchInput: '.hlm-swatch input, .hlm-swatch-list input',
+    swatchImage: '.hlm-swatch-image',
+    liveRegion: '#hlm-live-region',
+    errorNotice: '.hlm-error-notice',
+  };
+
+  /* ==========================================================================
+   * Utility Helpers
+   * ========================================================================== */
+
+  /**
+   * Get plugin settings from localized script data.
+   */
+  function getSetting(key, fallback) {
+    return (window.HLMFilters && window.HLMFilters[key] !== undefined)
+      ? window.HLMFilters[key]
+      : fallback;
+  }
+
+  /**
+   * Check if AJAX mode is enabled.
+   */
+  function isAjaxEnabled() {
+    return !!getSetting('enableAjax', false);
+  }
+
+  /**
+   * Safe localStorage wrapper.
+   */
+  var storage = {
+    get: function (key, fallback) {
+      try {
+        var val = localStorage.getItem(key);
+        return val !== null ? JSON.parse(val) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    },
+    set: function (key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {
+        // localStorage unavailable
+      }
+    },
+  };
+
+  /* ==========================================================================
+   * Form Serialization & URL Management
+   * ========================================================================== */
 
   function serializeForm($form) {
     return $form.serialize();
-  }
-
-  // Save expanded Show More states before AJAX replacement
-  function saveShowMoreState() {
-    var state = {};
-    $('.hlm-show-more').each(function () {
-      var $btn = $(this);
-      var $fieldset = $btn.closest('.hlm-filter');
-      var filterKey = $fieldset.find('input, select').first().attr('name');
-      if (filterKey) {
-        state[filterKey] = $btn.data('expanded') === true;
-      }
-    });
-    return state;
-  }
-
-  // Restore expanded Show More states after AJAX replacement
-  function restoreShowMoreState(state) {
-    if (!state || Object.keys(state).length === 0) return;
-
-    $('.hlm-filter').each(function () {
-      var $fieldset = $(this);
-      var filterKey = $fieldset.find('input, select').first().attr('name');
-      if (filterKey && state[filterKey] === true) {
-        var $btn = $fieldset.find('.hlm-show-more');
-        if ($btn.length && $btn.data('expanded') !== true) {
-          $btn.trigger('click');
-        }
-      }
-    });
-  }
-
-  // Show error message to user
-  function showError(message) {
-    var $wrap = $('.hlm-filters-wrap').first();
-    if (!$wrap.length) return;
-
-    // Remove existing error
-    $wrap.find('.hlm-error-notice').remove();
-
-    var errorMsg = message || (window.HLMFilters && window.HLMFilters.errorMessage) || 'Unable to load results. Please try again.';
-    var $error = $('<div class="hlm-error-notice" role="alert"></div>').text(errorMsg);
-    $wrap.prepend($error);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(function () {
-      $error.fadeOut(300, function () {
-        $(this).remove();
-      });
-    }, 5000);
-  }
-
-  // Announce results to screen readers
-  function announceResults(total) {
-    var $liveRegion = $('#hlm-live-region');
-    if (!$liveRegion.length) {
-      $liveRegion = $('<div id="hlm-live-region" class="hlm-sr-only" aria-live="polite" aria-atomic="true"></div>');
-      $('.hlm-filters-wrap').first().prepend($liveRegion);
-    }
-
-    var message;
-    if (total === 0) {
-      message = window.HLMFilters && window.HLMFilters.noResultsText
-        ? window.HLMFilters.noResultsText
-        : 'No products found';
-    } else if (total === 1) {
-      message = window.HLMFilters && window.HLMFilters.oneProductText
-        ? window.HLMFilters.oneProductText
-        : '1 product found';
-    } else {
-      message = window.HLMFilters && window.HLMFilters.productsFoundText
-        ? window.HLMFilters.productsFoundText.replace('%d', total)
-        : total + ' products found';
-    }
-
-    $liveRegion.text(message);
-  }
-
-  // Handle image fallback for broken swatch images
-  function handleImageError(event) {
-    var $img = $(event.target);
-    if (!$img.hasClass('hlm-swatch-image')) return;
-
-    var fallback = $img.data('fallback') || '?';
-    $img.removeClass('hlm-swatch-image')
-        .addClass('hlm-swatch-text')
-        .removeAttr('style')
-        .text(fallback);
-  }
-
-  // Keyboard navigation for swatch grids
-  function handleSwatchKeyboard(event) {
-    var $target = $(event.target);
-    if (!$target.is('.hlm-swatch input, .hlm-swatch-list input')) return;
-
-    var $list = $target.closest('.hlm-swatch-list, .hlm-filter-list');
-    var $inputs = $list.find('input:visible');
-    var currentIndex = $inputs.index($target);
-
-    if (currentIndex === -1) return;
-
-    var newIndex = currentIndex;
-    switch (event.key) {
-      case 'ArrowRight':
-      case 'ArrowDown':
-        event.preventDefault();
-        newIndex = (currentIndex + 1) % $inputs.length;
-        break;
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        event.preventDefault();
-        newIndex = (currentIndex - 1 + $inputs.length) % $inputs.length;
-        break;
-      default:
-        return;
-    }
-
-    $inputs.eq(newIndex).focus();
-  }
-
-  // Handle collapsible filter panels
-  function handleFilterToggle(event) {
-    var $button = $(event.target).closest('.hlm-filter-toggle');
-    if (!$button.length) return;
-
-    event.preventDefault();
-
-    var isExpanded = $button.attr('aria-expanded') === 'true';
-    var $body = $button.parent().next('.hlm-filter-body');
-
-    // Mark as user-expanded to override mobile default
-    $button.addClass('hlm-user-expanded');
-
-    if (isExpanded) {
-      $button.attr('aria-expanded', 'false');
-      $body.slideUp(200);
-    } else {
-      $button.attr('aria-expanded', 'true');
-      $body.slideDown(200);
-    }
-
-    // Save state to localStorage
-    var filterKey = $button.closest('.hlm-filter').data('filter-key');
-    if (filterKey) {
-      saveFilterCollapseState(filterKey, !isExpanded);
-    }
-  }
-
-  // Save/restore filter collapse state
-  function saveFilterCollapseState(key, isExpanded) {
-    try {
-      var state = JSON.parse(localStorage.getItem('hlm_filter_state') || '{}');
-      state[key] = isExpanded;
-      localStorage.setItem('hlm_filter_state', JSON.stringify(state));
-    } catch (e) {
-      // localStorage not available
-    }
-  }
-
-  function restoreFilterCollapseStates() {
-    try {
-      var state = JSON.parse(localStorage.getItem('hlm_filter_state') || '{}');
-      $('.hlm-filter-toggle').each(function () {
-        var $button = $(this);
-        var filterKey = $button.closest('.hlm-filter').data('filter-key');
-        if (filterKey && state[filterKey] !== undefined) {
-          $button.addClass('hlm-user-expanded');
-          if (state[filterKey]) {
-            $button.attr('aria-expanded', 'true');
-            $button.parent().next('.hlm-filter-body').show();
-          } else {
-            $button.attr('aria-expanded', 'false');
-            $button.parent().next('.hlm-filter-body').hide();
-          }
-        }
-      });
-    } catch (e) {
-      // localStorage not available
-    }
-  }
-
-  // Initialize on page load
-  function initCollapsible() {
-    // Check if mobile (coarse pointer)
-    var isMobile = window.matchMedia('(pointer: coarse)').matches;
-
-    if (isMobile) {
-      // Collapse all filters by default on mobile (unless user has saved state)
-      $('.hlm-filter-toggle').each(function () {
-        var $button = $(this);
-        if (!$button.hasClass('hlm-user-expanded')) {
-          $button.attr('aria-expanded', 'false');
-          $button.parent().next('.hlm-filter-body').hide();
-        }
-      });
-    }
-
-    // Restore user-saved states
-    restoreFilterCollapseStates();
-    
-    // Re-initialize event handlers after AJAX updates
-    $(document).on('hlm_filters_updated', function() {
-      restoreFilterCollapseStates();
-    });
   }
 
   function updateUrl($form) {
@@ -220,96 +87,37 @@
     window.history.pushState({ hlmFilters: true }, '', url);
   }
 
-  function updateResults(payload, $form) {
-    var resultSelector = $form.data('results') || '.products';
-    var paginationSelector = $form.data('pagination') || '.woocommerce-pagination';
-    var resultCountSelector = $form.data('resultCount') || '.woocommerce-result-count';
-    var $results = $(resultSelector).first();
-    var $pagination = $(paginationSelector).first();
-    var $resultCount = $(resultCountSelector).first();
-    var $filtersWrap = $('.hlm-filters-wrap').first();
+  function applyUrlState($form, location) {
+    var params = new URLSearchParams(location.search);
+    $form.get(0).reset();
 
-    // Save Show More expanded state before replacing filters
-    var showMoreState = saveShowMoreState();
+    params.forEach(function (value, key) {
+      if (key.indexOf('hlm_filters[') === 0) {
+        var $field = $form.find('[name="' + key + '"]');
 
-    if ($results.length && payload.html !== undefined) {
-      // Extract only the <li> items from payload.html to avoid duplicate <ul> wrappers
-      // payload.html contains the full <ul class="products">...</ul> wrapper from WooCommerce
-      // but $results is already the .products container, so we only need the inner <li> items
-      var $temp = $('<div></div>').html(payload.html);
-      
-      // First, try to find the .products wrapper (handles variations like "products columns-3")
-      // Use attribute selector to match any ul with class containing "products"
-      var $wrapper = $temp.find('ul[class*="products"]').first();
-      if ($wrapper.length) {
-        // Extract only direct children (<li> items) to avoid nested structures
-        $results.empty().append($wrapper.children('li'));
-      } else {
-        // Fallback: if no .products wrapper found, try to find any <li> items
-        var $productItems = $temp.find('li');
-        if ($productItems.length > 0) {
-          $results.empty().append($productItems);
-        } else {
-          // Last resort: use the HTML as-is (shouldn't happen, but safe fallback)
-          $results.html(payload.html);
-        }
-      }
-    }
-
-    if ($pagination.length && payload.pagination !== undefined) {
-      $pagination.html(payload.pagination);
-    } else if (payload.pagination && $results.length) {
-      var $temp = $('<div></div>').html(payload.pagination);
-      var $nav = $temp.find('.woocommerce-pagination').first();
-      if ($nav.length) {
-        $results.after($nav);
-      }
-    }
-
-    if ($filtersWrap.length && payload.filters) {
-      $filtersWrap.replaceWith(payload.filters);
-      // Ensure overlay is hidden after filter replacement
-      setTimeout(function() {
-        toggleLoading(null, false);
-        $('.hlm-filters-loading').removeClass('is-active')
-          .attr('aria-hidden', 'true')
-          .removeAttr('style')
-          .css('display', 'none')
-          .hide();
-        $('body').css('overflow', '');
-      }, 10);
-    }
-
-    if (payload.result_count !== undefined) {
-      if ($resultCount.length) {
-        $resultCount.replaceWith(payload.result_count);
-      } else if ($results.length && payload.result_count) {
-        $results.before(payload.result_count);
-      }
-    }
-
-    // Re-hide items based on threshold after replacing filters
-    $('.hlm-show-more').each(function() {
-      var $button = $(this);
-      var $fieldset = $button.closest('.hlm-filter');
-      var threshold = parseInt($button.data('threshold') || '0', 10);
-      var isExpanded = $button.data('expanded') === true;
-      
-      if (threshold > 0 && !isExpanded) {
-        $fieldset.find('ul > li').each(function(index) {
-          if (index >= threshold) {
-            $(this).attr('data-hlm-hidden', 'true');
+        if ($field.length && $field.is('select')) {
+          if ($field.prop('multiple')) {
+            $field.find('option[value="' + value + '"]').prop('selected', true);
+          } else {
+            $field.val(value);
           }
-        });
+          return;
+        }
+
+        $form.find('[name="' + key + '"][value="' + value + '"]').prop('checked', true);
+        return;
+      }
+
+      var $input = $form.find('[name="' + key + '"]');
+      if ($input.length) {
+        $input.val(value);
       }
     });
-    
-    // Restore Show More expanded state after replacing filters
-    restoreShowMoreState(showMoreState);
-    
-    // Trigger custom event for re-initialization
-    $(document).trigger('hlm_filters_updated');
   }
+
+  /* ==========================================================================
+   * Pagination Helpers
+   * ========================================================================== */
 
   function setPage($form, page) {
     var $input = $form.find('input[name="paged"]');
@@ -326,11 +134,13 @@
     }
   }
 
+  /* ==========================================================================
+   * Loading Overlay
+   * ========================================================================== */
+
   function getGlobalOverlay() {
-    // Find existing overlay from template or create new one
-    var $overlay = $('.hlm-filters-loading').first();
-    
-    // If found, ensure it's in body for proper positioning
+    var $overlay = $(selectors.overlay).first();
+
     if ($overlay.length) {
       if (!$overlay.parent().is('body')) {
         $overlay.detach().appendTo('body');
@@ -338,316 +148,520 @@
       return $overlay;
     }
 
-    // Create new overlay if none exists
-    var html = '<div class="hlm-filters-loading-inner" role="alert" aria-busy="true">' +
-      '<svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">' +
-      '<defs>' +
-      '<linearGradient id="hlm-loader-gradient" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0%" stop-color="#0f766e"/>' +
-      '<stop offset="100%" stop-color="#14b8a6"/>' +
-      '</linearGradient>' +
-      '</defs>' +
-      '<circle class="hlm-loader-track" cx="60" cy="60" r="44" />' +
-      '<circle class="hlm-loader-ring" cx="60" cy="60" r="44" />' +
-      '</svg>' +
-      '<div class="hlm-loader-text">' +
-      '<strong>Updating results</strong>' +
-      '<span>Applying filters…</span>' +
-      '</div>' +
-      '</div>';
-    
-    $overlay = $('<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true"></div>');
-    $overlay.html(html);
+    // Create overlay if none exists in the DOM
+    $overlay = $(
+      '<div class="hlm-filters-loading" role="status" aria-live="polite" aria-hidden="true">' +
+        '<div class="hlm-filters-loading-inner" role="alert" aria-busy="true">' +
+          '<svg class="hlm-loader" viewBox="0 0 120 120" aria-hidden="true" focusable="false">' +
+            '<defs>' +
+              '<linearGradient id="hlm-loader-gradient" x1="0" y1="0" x2="1" y2="1">' +
+                '<stop offset="0%" stop-color="#0f766e"/>' +
+                '<stop offset="100%" stop-color="#14b8a6"/>' +
+              '</linearGradient>' +
+            '</defs>' +
+            '<circle class="hlm-loader-track" cx="60" cy="60" r="44" />' +
+            '<circle class="hlm-loader-ring" cx="60" cy="60" r="44" />' +
+          '</svg>' +
+          '<div class="hlm-loader-text">' +
+            '<strong>Updating results</strong>' +
+            '<span>Applying filters…</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+
     $('body').append($overlay);
     return $overlay;
   }
 
-  function toggleLoading($form, isLoading) {
-    // Always use global overlay for full-screen coverage
+  function showLoading($form) {
     var $overlay = getGlobalOverlay();
 
-    if (isLoading) {
-      // Ensure overlay is in body for proper positioning
-      if (!$overlay.parent().is('body')) {
-        $overlay.detach();
-        $('body').append($overlay);
-      }
-      
-      // Show overlay immediately - use class and inline styles
-      $overlay
-        .addClass('is-active')
-        .attr('aria-hidden', 'false')
-        .css({
-          'display': 'flex',
-          'position': 'fixed',
-          'top': '0',
-          'left': '0',
-          'right': '0',
-          'bottom': '0',
-          'width': '100%',
-          'height': '100%',
-          'z-index': '999999',
-          'background': 'rgba(15, 23, 42, 0.4)',
-          'backdrop-filter': 'blur(4px)',
-          'margin': '0',
-          'padding': '0',
-          'visibility': 'visible',
-          'opacity': '1',
-          'pointer-events': 'auto'
-        })
-        .show();
-      
-      $form.attr('aria-busy', 'true').addClass('is-loading');
-      var resultSelector = $form.data('results') || '.products';
-      $(resultSelector).first().attr('aria-busy', 'true');
-      // Prevent body scroll when overlay is active
-      $('body').css('overflow', 'hidden');
-      return;
+    if (!$overlay.parent().is('body')) {
+      $overlay.detach().appendTo('body');
     }
 
+    $overlay
+      .addClass('is-active')
+      .attr('aria-hidden', 'false')
+      .css({
+        display: 'flex',
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        width: '100%', height: '100%',
+        zIndex: 999999,
+        background: 'rgba(15, 23, 42, 0.4)',
+        backdropFilter: 'blur(4px)',
+        margin: 0, padding: 0,
+        visibility: 'visible',
+        opacity: 1,
+        pointerEvents: 'auto',
+      })
+      .show();
+
+    $form.attr('aria-busy', 'true').addClass('is-loading');
+
+    var resultSelector = $form.data('results') || '.products';
+    $(resultSelector).first().attr('aria-busy', 'true');
+
+    $('body').css('overflow', 'hidden');
+  }
+
+  function hideLoading($form) {
     if ($form) {
       $form.removeAttr('aria-busy').removeClass('is-loading');
-    }
-    
-    // Force hide ALL overlay elements - find them all and hide them
-    $('.hlm-filters-loading').each(function() {
-      var $el = $(this);
-      $el
-        .removeClass('is-active')
-        .attr('aria-hidden', 'true')
-        .hide();
-      
-      // Use attr to set style with !important (jQuery css() doesn't support !important)
-      var existingStyle = $el.attr('style') || '';
-      $el.attr('style', 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: fixed;');
-    });
-    
-    if ($form) {
+
       var resultSelector = $form.data('results') || '.products';
       $(resultSelector).first().removeAttr('aria-busy');
     }
-    
-    // Restore body scroll
+
+    // Remove inline styles entirely so showLoading can work next time
+    $(selectors.overlay).each(function () {
+      $(this)
+        .removeClass('is-active')
+        .attr('aria-hidden', 'true')
+        .removeAttr('style')
+        .hide();
+    });
+
     $('body').css('overflow', '');
   }
 
+  /* ==========================================================================
+   * User Feedback (Errors & Screen-Reader Announcements)
+   * ========================================================================== */
+
+  function showError(message) {
+    var $wrap = $(selectors.wrap).first();
+    if (!$wrap.length) return;
+
+    $wrap.find(selectors.errorNotice).remove();
+
+    var text = message || getSetting('errorMessage', 'Unable to load results. Please try again.');
+    var $error = $('<div class="hlm-error-notice" role="alert"></div>').text(text);
+    $wrap.prepend($error);
+
+    setTimeout(function () {
+      $error.fadeOut(300, function () { $(this).remove(); });
+    }, config.ERROR_DISMISS_MS);
+  }
+
+  function announceResults(total) {
+    var $region = $(selectors.liveRegion);
+
+    if (!$region.length) {
+      $region = $('<div id="hlm-live-region" class="hlm-sr-only" aria-live="polite" aria-atomic="true"></div>');
+      $(selectors.wrap).first().prepend($region);
+    }
+
+    var message;
+    if (total === 0) {
+      message = getSetting('noResultsText', 'No products found');
+    } else if (total === 1) {
+      message = getSetting('oneProductText', '1 product found');
+    } else {
+      message = getSetting('productsFoundText', '%d products found').replace('%d', total);
+    }
+
+    $region.text(message);
+  }
+
+  /* ==========================================================================
+   * "Show More / Hide All" – Batched Reveal
+   * ========================================================================== */
+
+  /**
+   * Save which filters have their "Show More" expanded before an AJAX swap.
+   */
+  function saveShowMoreState() {
+    var map = {};
+
+    $(selectors.showMore).each(function () {
+      var $btn = $(this);
+      var key = $btn.closest(selectors.filter).find('input, select').first().attr('name');
+      if (key) {
+        map[key] = $btn.data('expanded') === true;
+      }
+    });
+
+    return map;
+  }
+
+  /**
+   * After AJAX replaces the filter HTML, re-expand any that were open.
+   */
+  function restoreShowMoreState(map) {
+    if (!map || !Object.keys(map).length) return;
+
+    $(selectors.filter).each(function () {
+      var $fieldset = $(this);
+      var key = $fieldset.find('input, select').first().attr('name');
+
+      if (key && map[key] === true) {
+        var $btn = $fieldset.find(selectors.showMore);
+        if ($btn.length && $btn.data('expanded') !== true) {
+          $btn.trigger('click');
+        }
+      }
+    });
+  }
+
+  /**
+   * Re-apply data-hlm-hidden after AJAX replaces filter markup.
+   */
+  function reapplyThresholds() {
+    $(selectors.showMore).each(function () {
+      var $btn = $(this);
+      var threshold = parseInt($btn.data('threshold') || '0', 10);
+
+      if (threshold > 0 && $btn.data('expanded') !== true) {
+        $btn.closest(selectors.filter).find('ul > li').each(function (i) {
+          if (i >= threshold) {
+            $(this).attr('data-hlm-hidden', 'true');
+          }
+        });
+      }
+    });
+  }
+
+  /* ==========================================================================
+   * Collapsible Filter Panels
+   * ========================================================================== */
+
+  function saveCollapseState(filterKey, isExpanded) {
+    var all = storage.get('hlm_filter_state', {});
+    all[filterKey] = isExpanded;
+    storage.set('hlm_filter_state', all);
+  }
+
+  function restoreCollapseStates() {
+    var all = storage.get('hlm_filter_state', {});
+
+    $(selectors.toggle).each(function () {
+      var $btn = $(this);
+      var key = $btn.closest(selectors.filter).data('filter-key');
+
+      if (key && all[key] !== undefined) {
+        $btn.addClass('hlm-user-expanded');
+
+        if (all[key]) {
+          $btn.attr('aria-expanded', 'true');
+          $btn.parent().next('.hlm-filter-body').show();
+        } else {
+          $btn.attr('aria-expanded', 'false');
+          $btn.parent().next('.hlm-filter-body').hide();
+        }
+      }
+    });
+  }
+
+  function initCollapsible() {
+    var isMobile = window.matchMedia('(pointer: coarse)').matches;
+
+    if (isMobile) {
+      $(selectors.toggle).each(function () {
+        var $btn = $(this);
+        if (!$btn.hasClass('hlm-user-expanded')) {
+          $btn.attr('aria-expanded', 'false');
+          $btn.parent().next('.hlm-filter-body').hide();
+        }
+      });
+    }
+
+    restoreCollapseStates();
+  }
+
+  /* ==========================================================================
+   * AJAX Result Updates
+   * ========================================================================== */
+
+  function updateResults(payload, $form) {
+    var resultSel = $form.data('results') || '.products';
+    var pagSel    = $form.data('pagination') || '.woocommerce-pagination';
+    var countSel  = $form.data('resultCount') || '.woocommerce-result-count';
+
+    var $results     = $(resultSel).first();
+    var $pagination  = $(pagSel).first();
+    var $resultCount = $(countSel).first();
+    var $filtersWrap = $(selectors.wrap).first();
+
+    // Preserve Show More state across the DOM swap
+    var showMoreState = saveShowMoreState();
+
+    // -- Products --
+    if ($results.length && payload.html !== undefined) {
+      var $temp = $('<div>').html(payload.html);
+      var $wrapper = $temp.find('ul[class*="products"]').first();
+
+      if ($wrapper.length) {
+        $results.empty().append($wrapper.children('li'));
+      } else {
+        var $items = $temp.find('li');
+        if ($items.length) {
+          $results.empty().append($items);
+        } else {
+          $results.html(payload.html);
+        }
+      }
+    }
+
+    // -- Pagination --
+    if ($pagination.length && payload.pagination !== undefined) {
+      $pagination.html(payload.pagination);
+    } else if (payload.pagination && $results.length) {
+      var $nav = $('<div>').html(payload.pagination).find('.woocommerce-pagination').first();
+      if ($nav.length) {
+        $results.after($nav);
+      }
+    }
+
+    // -- Filter sidebar --
+    if ($filtersWrap.length && payload.filters) {
+      $filtersWrap.replaceWith(payload.filters);
+
+      setTimeout(function () {
+        hideLoading(null);
+      }, config.OVERLAY_CLEANUP_DELAY);
+    }
+
+    // -- Result count --
+    if (payload.result_count !== undefined) {
+      if ($resultCount.length) {
+        $resultCount.replaceWith(payload.result_count);
+      } else if ($results.length) {
+        $results.before(payload.result_count);
+      }
+    }
+
+    // Restore threshold hiding & expanded states
+    reapplyThresholds();
+    restoreShowMoreState(showMoreState);
+
+    // Let other code react (e.g. collapse state restore)
+    $(document).trigger('hlm_filters_updated');
+  }
+
+  /* ==========================================================================
+   * Event Handlers
+   * ========================================================================== */
+
   function handleSubmit(event) {
-    var $form = $(event.target).closest('form.hlm-filters');
-    if (!$form.length || !$form.hasClass('hlm-filters')) {
-      return;
-    }
-
-    if (!window.HLMFilters || !window.HLMFilters.enableAjax) {
-      return;
-    }
-
+   var $form = $(event.target).closest(selectors.form);
+    if (!$form.length || !isAjaxEnabled()) return;
     event.preventDefault();
     event.stopPropagation();
-
-    // Abort any in-flight request to prevent race conditions
-    if (currentRequest && currentRequest.readyState !== 4) {
-      currentRequest.abort();
+    // Abort any in-flight request
+    if (state.currentRequest && state.currentRequest.readyState !== 4) {
+      state.currentRequest.abort();
     }
 
-    // Show overlay immediately - no delays
-    toggleLoading($form, true);
-    
-    // Start AJAX request
-    currentRequest = $.ajax({
-      url: window.HLMFilters.ajaxUrl,
+    showLoading($form);
+
+    state.currentRequest = $.ajax({
+      url: getSetting('ajaxUrl', ''),
       method: 'POST',
       dataType: 'json',
       data: {
         action: 'hlm_apply_filters',
-        nonce: window.HLMFilters.nonce || '',
-        form: serializeForm($form)
-      }
+        nonce: getSetting('nonce', ''),
+        form: serializeForm($form),
+      },
     })
       .done(function (response) {
-        // Hide overlay immediately on response
-        toggleLoading($form, false);
-        
+        hideLoading($form);
+
         if (response && response.success) {
           updateResults(response.data || {}, $form);
           updateUrl($form);
-          // Announce results to screen readers
-          var total = response.data && response.data.total !== undefined ? response.data.total : 0;
-          announceResults(total);
+          announceResults((response.data && response.data.total) || 0);
         } else {
-          // Server returned error response
-          var errorMsg = (response && response.data && response.data.message) ? response.data.message : null;
-          showError(errorMsg);
+          var msg = (response && response.data && response.data.message) || null;
+          showError(msg);
         }
       })
       .fail(function (_xhr, status) {
-        // Hide overlay on error
-        toggleLoading($form, false);
-        
-        // Skip error message for aborted requests
-        if (status === 'abort') {
-          return;
-        }
-        // Show user-friendly error message
-        showError();
+        hideLoading($form);
+        if (status !== 'abort') showError();
       })
       .always(function () {
-        // Final safety check - force hide overlay
-        toggleLoading($form, false);
-        
-        // Additional force hide after a tiny delay
-        setTimeout(function() {
-          $('.hlm-filters-loading').each(function() {
-            var $el = $(this);
-            $el.removeClass('is-active')
-              .attr('aria-hidden', 'true')
-              .hide()
-              .attr('style', 'display: none !important; visibility: hidden !important; opacity: 0 !important;');
-          });
-          $('body').css('overflow', '');
-        }, 10);
-        
-        currentRequest = null;
+        hideLoading($form);
+
+        // Final safety net
+        setTimeout(function () {
+          hideLoading(null);
+        }, config.OVERLAY_CLEANUP_DELAY);
+
+        state.currentRequest = null;
       });
   }
 
   function handleAutoApply(event) {
-    var $form = $(event.target).closest('form.hlm-filters');
-    if (!$form.length) {
-      return;
-    }
-    if (!window.HLMFilters || !window.HLMFilters.enableAjax) {
-      return;
-    }
-    if (window.HLMFilters.enableApply) {
-      return;
-    }
+    var $form = $(event.target).closest(selectors.form);
+    if (!$form.length || !isAjaxEnabled() || getSetting('enableApply', false)) return;
 
-    // Debounce rapid checkbox clicks
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-
-    debounceTimer = setTimeout(function () {
+    clearTimeout(state.debounceTimer);
+    state.debounceTimer = setTimeout(function () {
       clearPage($form);
       $form.trigger('submit');
-      debounceTimer = null;
-    }, DEBOUNCE_DELAY);
+      state.debounceTimer = null;
+    }, config.DEBOUNCE_DELAY);
   }
 
   function handleShowMore(event) {
-    var $button = $(event.target).closest('.hlm-show-more');
-    if (!$button.length) {
-      return;
-    }
+    var $button = $(event.target).closest(selectors.showMore);
+    if (!$button.length) return;
 
-    var $fieldset = $button.closest('.hlm-filter');
+    var $fieldset = $button.closest(selectors.filter);
+    var threshold = parseInt($button.data('threshold') || '0', 10);
+    if (threshold <= 0) return;
+
+    var $allItems = $fieldset.find('ul > li');
     var isExpanded = $button.data('expanded') === true;
 
-    if (!isExpanded) {
-      $fieldset.find('[data-hlm-hidden="true"]').removeAttr('data-hlm-hidden');
-      $button.text('Show less');
-      $button.attr('aria-expanded', 'true');
-      $button.data('expanded', true);
+    // Collapse all back to threshold
+    if (isExpanded) {
+      $allItems.each(function (i) {
+        if (i >= threshold) $(this).attr('data-hlm-hidden', 'true');
+      });
+      $button.text('Show more').attr('aria-expanded', 'false').data('expanded', false);
       return;
     }
 
-    var threshold = parseInt($button.data('threshold') || '0', 10);
-    $fieldset.find('ul > li').each(function (index) {
-      if (threshold > 0 && index >= threshold) {
-        $(this).attr('data-hlm-hidden', 'true');
+    // Reveal next batch
+    var revealed = 0;
+    $allItems.each(function () {
+      if (revealed >= threshold) return false;
+      var $item = $(this);
+      if ($item.attr('data-hlm-hidden') === 'true') {
+        $item.removeAttr('data-hlm-hidden');
+        revealed++;
       }
     });
-    $button.text('Show more');
-    $button.attr('aria-expanded', 'false');
-    $button.data('expanded', false);
+
+    // All visible? Switch to "Hide All"
+    if (!$fieldset.find('[data-hlm-hidden="true"]').length) {
+      $button.text('Hide All').attr('aria-expanded', 'true').data('expanded', true);
+    }
   }
 
   function handlePaginationClick(event) {
-    var $link = $(event.target).closest('.woocommerce-pagination a');
-    if (!$link.length) {
-      return;
-    }
+    var $link = $(event.target).closest(selectors.pagination);
+    if (!$link.length) return;
 
-    var $form = $('form.hlm-filters').first();
-    if (!$form.length || !window.HLMFilters || !window.HLMFilters.enableAjax) {
-      return;
-    }
+    var $form = $(selectors.form).first();
+    if (!$form.length || !isAjaxEnabled()) return;
 
     event.preventDefault();
 
-    var url = new URL($link.attr('href'));
-    var page = url.searchParams.get('paged') || '1';
+    var page = new URL($link.attr('href')).searchParams.get('paged') || '1';
     setPage($form, page);
     $form.trigger('submit');
   }
 
-  function applyUrlState($form, url) {
-    var params = new URLSearchParams(url.search);
-    $form.get(0).reset();
+  function handleFilterToggle(event) {
+    var $button = $(event.target).closest(selectors.toggle);
+    if (!$button.length) return;
 
-    params.forEach(function (value, key) {
-      if (key.indexOf('hlm_filters[') === 0) {
-        var $field = $form.find('[name="' + key + '"]');
-        if ($field.length && $field.is('select')) {
-          if ($field.prop('multiple')) {
-            $field.find('option[value="' + value + '"]').prop('selected', true);
-          } else {
-            $field.val(value);
-          }
-          return;
-        }
-        $form.find('[name="' + key + '"][value="' + value + '"]').prop('checked', true);
-        return;
-      }
+    event.preventDefault();
 
-      var $field = $form.find('[name="' + key + '"]');
-      if ($field.length) {
-        $field.val(value);
-      }
-    });
+    var isExpanded = $button.attr('aria-expanded') === 'true';
+    var $body = $button.parent().next('.hlm-filter-body');
+
+    $button.addClass('hlm-user-expanded');
+
+    if (isExpanded) {
+      $button.attr('aria-expanded', 'false');
+      $body.slideUp(config.SLIDE_DURATION);
+    } else {
+      $button.attr('aria-expanded', 'true');
+      $body.slideDown(config.SLIDE_DURATION);
+    }
+
+    var filterKey = $button.closest(selectors.filter).data('filter-key');
+    if (filterKey) saveCollapseState(filterKey, !isExpanded);
+  }
+
+  function handleSwatchKeyboard(event) {
+    var $target = $(event.target);
+    if (!$target.is(selectors.swatchInput)) return;
+
+    var arrows = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    var dir = arrows[event.key];
+    if (!dir) return;
+
+    event.preventDefault();
+
+    var $inputs = $target.closest('.hlm-swatch-list, .hlm-filter-list').find('input:visible');
+    var idx = ($inputs.index($target) + dir + $inputs.length) % $inputs.length;
+    $inputs.eq(idx).focus();
+  }
+
+  function handleImageError(event) {
+    var $img = $(event.target);
+    if (!$img.hasClass('hlm-swatch-image')) return;
+
+    $img
+      .removeClass('hlm-swatch-image')
+      .addClass('hlm-swatch-text')
+      .removeAttr('style')
+      .text($img.data('fallback') || '?');
   }
 
   function handlePopState() {
-    var $form = $('form.hlm-filters').first();
-    if (!$form.length || !window.HLMFilters || !window.HLMFilters.enableAjax) {
-      return;
-    }
+    var $form = $(selectors.form).first();
+    if (!$form.length || !isAjaxEnabled()) return;
+
     applyUrlState($form, window.location);
     $form.trigger('submit');
   }
 
+  function handleClearAll(event) {
+      var $link = $(event.target).closest('.hlm-filter-actions a');
+      if (!$link.length) return;
+
+      var $form = $(selectors.form).first();
+      if (!$form.length || !isAjaxEnabled()) return;
+
+      event.preventDefault();
+
+      // Uncheck all checkboxes
+      $form.find('input[type="checkbox"]').prop('checked', false);
+
+      // Reset all selects to first option
+      $form.find('select[name^="hlm_filters"]').each(function () {
+          $(this).find('option').prop('selected', false);
+          $(this).find('option:first').prop('selected', true);
+      });
+
+      clearPage($form);
+      $form.trigger('submit');
+  }
+
+  /* ==========================================================================
+   * Bind Events & Initialize
+   * ========================================================================== */
+
+  // Delegated events (survive AJAX replacements)
   $(document)
-    .on('click', handlePaginationClick)
-    .on('click', handleShowMore)
-    .on('click', '.hlm-filter-toggle', handleFilterToggle)
-    .on('change', 'form.hlm-filters input[type="checkbox"], form.hlm-filters select', handleAutoApply)
-    .on('keydown', '.hlm-swatch-list input, .hlm-filter-list input', handleSwatchKeyboard)
-    .on('error', '.hlm-swatch-image', handleImageError);
+    .on('click', selectors.pagination, handlePaginationClick)
+    .on('click', selectors.showMore, handleShowMore)
+    .on('click', selectors.toggle, handleFilterToggle)
+    .on('click', '.hlm-filter-actions a', handleClearAll)
+    .on('change', selectors.form + ' input[type="checkbox"], ' + selectors.form + ' select', handleAutoApply)
+    .on('keydown', selectors.swatchInput, handleSwatchKeyboard)
+    .on('error', selectors.swatchImage, handleImageError)
+    .on('hlm_filters_updated', restoreCollapseStates);
 
   $(window).on('popstate', handlePopState);
 
-  // Initialize collapsible on DOM ready
+  // DOM ready
   $(function () {
     initCollapsible();
-    
-    // Pre-initialize the global overlay so it's always available
     getGlobalOverlay();
-    
-    // Ensure AJAX handlers are properly attached
-    if (window.HLMFilters && window.HLMFilters.enableAjax) {
-      // Remove any existing handlers and attach with namespace to avoid conflicts
-      $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
+
+    if (isAjaxEnabled()) {
+      $(document).off('submit.hlm').on('submit.hlm', selectors.form, handleSubmit);
     }
   });
-  
-  // Also attach on document ready for dynamically added forms
-  $(document).ready(function() {
-    // Pre-initialize the global overlay so it's always available
-    getGlobalOverlay();
-    
-    if (window.HLMFilters && window.HLMFilters.enableAjax) {
-      // Remove any existing handlers and attach with namespace to avoid conflicts
-      $(document).off('submit.hlm', 'form.hlm-filters').on('submit.hlm', 'form.hlm-filters', handleSubmit);
-    }
-  });
+
 })(jQuery);

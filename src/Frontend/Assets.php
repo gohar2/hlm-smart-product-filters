@@ -13,6 +13,9 @@ final class Assets
         $this->config = $config;
     }
 
+    /**
+     * This method is not being used because I have called the enqueue method directly on ShortCode.php file
+     */
     public function register(): void
     {
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
@@ -20,13 +23,6 @@ final class Assets
 
     public function enqueue(): void
     {
-        // Load on WooCommerce pages and any page that might have the shortcode
-        $should_load = is_product_category() || is_product_tag() || is_shop() || is_page() || is_singular('product') || is_tax();
-
-        if (!$should_load) {
-            return;
-        }
-
         wp_register_style(
             'hlm-filters',
             HLM_FILTERS_URL . 'assets/css/filters.css',
@@ -59,8 +55,6 @@ final class Assets
 
     private function enqueue_styles(array $config): void
     {
-        wp_enqueue_style('hlm-filters');
-
         $ui = $config['global']['ui'] ?? [];
         $vars = [
             '--hlm-accent' => $ui['accent_color'] ?? '#0f766e',
@@ -84,9 +78,9 @@ final class Assets
             }
             $declarations .= $name . ':' . $value . ';';
         }
-
-        if ($declarations !== '') {
-            wp_add_inline_style('hlm-filters', '.hlm-filters-wrap{' . $declarations . '}');
-        }
+        
+        wp_add_inline_style('hlm-filters', '.hlm-filters-wrap{' . $declarations . '}');
+        // Enqueue the styles after the declarations are added
+        wp_enqueue_style('hlm-filters');
     }
 }
