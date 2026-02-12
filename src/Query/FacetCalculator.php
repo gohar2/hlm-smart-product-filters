@@ -272,14 +272,21 @@ final class FacetCalculator
         $product_ids = array_map('intval', $product_ids);
         $placeholders = implode(',', array_fill(0, count($product_ids), '%d'));
 
+        // Subquery ensures ONE price per product (MIN), preventing inflated max
+        // from duplicate/stale meta entries (e.g. WooCommerce variation prices synced to parent)
         $sql = $wpdb->prepare(
-            "SELECT MIN(CAST(pm.meta_value AS DECIMAL(10,2))) AS min_val,
-                    MAX(CAST(pm.meta_value AS DECIMAL(10,2))) AS max_val
-             FROM {$wpdb->postmeta} pm
-             WHERE pm.meta_key = %s
-               AND pm.post_id IN ({$placeholders})
-               AND pm.meta_value != ''
-               AND pm.meta_value REGEXP '^[0-9]'",
+            "SELECT MIN(product_price) AS min_val,
+                    MAX(product_price) AS max_val
+             FROM (
+                 SELECT pm.post_id,
+                        MIN(CAST(pm.meta_value AS DECIMAL(10,2))) AS product_price
+                 FROM {$wpdb->postmeta} pm
+                 WHERE pm.meta_key = %s
+                   AND pm.post_id IN ({$placeholders})
+                   AND pm.meta_value != ''
+                   AND pm.meta_value REGEXP '^[0-9]'
+                 GROUP BY pm.post_id
+             ) AS product_prices",
             array_merge([$meta_key], $product_ids)
         );
 

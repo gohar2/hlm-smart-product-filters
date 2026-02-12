@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HLM Smart Product Filters
  * Description: Smart, extensible product filters for WooCommerce.
- * Version: 0.3.5
+ * Version: 0.3.9
  * Author: HLM
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HLM_FILTERS_VERSION', '0.3.8');
+define('HLM_FILTERS_VERSION', '0.3.9');
 define('HLM_FILTERS_PATH', plugin_dir_path(__FILE__));
 define('HLM_FILTERS_URL', plugin_dir_url(__FILE__));
 define('HLM_FILTERS_FILE', __FILE__);
