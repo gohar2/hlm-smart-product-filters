@@ -42,13 +42,13 @@ final class AutoInjector
             return;
         }
 
-        if (is_shop() && empty($config['global']['auto_on_shop'])) {
-            return;
-        }
-        if (is_product_category() && empty($config['global']['auto_on_categories'])) {
-            return;
-        }
-        if (is_product_tag() && empty($config['global']['auto_on_tags'])) {
+        $should_render =
+        (is_shop() && !empty($config['global']['auto_on_shop'])) ||
+        (is_product_category() && !empty($config['global']['auto_on_categories'])) ||
+        (is_product_tag() && !empty($config['global']['auto_on_tags'])) ||
+        (is_tax() && !is_product_category() && !is_product_tag());
+
+        if (!$should_render) {
             return;
         }
 
