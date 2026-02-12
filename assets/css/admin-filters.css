@@ -696,6 +696,7 @@
 .hlm-custom-source.is-hidden,
 .hlm-meta-source.is-hidden,
 .hlm-range-only.is-hidden,
+.hlm-slider-only.is-hidden,
 .hlm-show-more-only.is-hidden,
 .hlm-list-only.is-hidden {
   display: none !important;

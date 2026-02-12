@@ -416,7 +416,8 @@ final class FiltersBuilderPage
         // Type-based visibility flags for conditional field display
         $is_list = ($type === 'checkbox');
         $is_swatch = ($type === 'swatch');
-        $is_range = ($type === 'range');
+        $is_range = ($type === 'range' || $type === 'slider');
+        $is_slider = ($type === 'slider');
         $show_more = ($type === 'checkbox' || $type === 'swatch');
 
         echo '<li class="hlm-filter-row">';
@@ -533,6 +534,7 @@ final class FiltersBuilderPage
             'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
             'swatch' => __('Swatch', 'hlm-smart-product-filters'),
             'range' => __('Range (min / max)', 'hlm-smart-product-filters'),
+            'slider' => __('Slider', 'hlm-smart-product-filters'),
         ], ['data-help' => __('How shoppers select options. Swatches show visual chips (color, image, or text).', 'hlm-smart-product-filters')]);
 
         $this->select_field($index, 'ui][layout', __('List layout', 'hlm-smart-product-filters'), $layout, [
@@ -558,9 +560,9 @@ final class FiltersBuilderPage
             'wrapper_class' => 'hlm-show-more-only' . (!$show_more ? ' is-hidden' : ''),
         ]);
 
-        $this->text_field($index, 'ui][range_step', __('Range step', 'hlm-smart-product-filters'), $range_step, [
-            'data-help' => __('Step increment for the range inputs (e.g. 1, 0.01).', 'hlm-smart-product-filters'),
-            'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
+        $this->text_field($index, 'ui][range_step', __('Slider step', 'hlm-smart-product-filters'), $range_step, [
+            'data-help' => __('Step increment for the slider handles (e.g. 1, 0.01).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-slider-only' . (!$is_slider ? ' is-hidden' : ''),
             'placeholder' => '1',
         ]);
         $this->text_field($index, 'ui][range_prefix', __('Range prefix', 'hlm-smart-product-filters'), $range_prefix, [

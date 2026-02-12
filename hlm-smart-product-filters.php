@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HLM_FILTERS_VERSION', '0.3.7');
+define('HLM_FILTERS_VERSION', '0.3.8');
 define('HLM_FILTERS_PATH', plugin_dir_path(__FILE__));
 define('HLM_FILTERS_URL', plugin_dir_url(__FILE__));
 define('HLM_FILTERS_FILE', __FILE__);

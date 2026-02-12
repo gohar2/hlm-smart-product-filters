@@ -636,8 +636,89 @@
       // Clear all range inputs
       $form.find('.hlm-range-filter input[type="number"]').val('');
 
+      // Reset all slider inputs
+      $form.find('.hlm-slider-filter').each(function () {
+        var $wrap = $(this);
+        var dataMin = parseFloat($wrap.data('min'));
+        var dataMax = parseFloat($wrap.data('max'));
+        $wrap.find('.hlm-slider-min').val(dataMin);
+        $wrap.find('.hlm-slider-max').val(dataMax);
+        $wrap.find('.hlm-slider-hidden-min').val('');
+        $wrap.find('.hlm-slider-hidden-max').val('');
+        $wrap.find('.hlm-slider-display-min').text(dataMin);
+        $wrap.find('.hlm-slider-display-max').text(dataMax);
+        updateSliderTrack($wrap, $wrap.find('.hlm-slider-min'), $wrap.find('.hlm-slider-max'));
+      });
+
       clearPage($form);
       $form.trigger('submit');
+  }
+
+  /* ==========================================================================
+   * Dual-Handle Slider
+   * ========================================================================== */
+
+  function initSliders() {
+    $('.hlm-slider-filter').each(function () {
+      var $wrap = $(this);
+      var $minInput = $wrap.find('.hlm-slider-min');
+      var $maxInput = $wrap.find('.hlm-slider-max');
+      updateSliderTrack($wrap, $minInput, $maxInput);
+    });
+  }
+
+  function updateSliderTrack($wrap, $min, $max) {
+    var rangeMin = parseFloat($min.attr('min'));
+    var rangeMax = parseFloat($min.attr('max'));
+    var valMin = parseFloat($min.val());
+    var valMax = parseFloat($max.val());
+    var total = rangeMax - rangeMin;
+    if (total <= 0) return;
+    var left = ((valMin - rangeMin) / total) * 100;
+    var right = ((valMax - rangeMin) / total) * 100;
+    var $track = $wrap.find('.hlm-slider-track');
+    $track.css('--hlm-slider-left', left + '%');
+    $track.css('--hlm-slider-right', right + '%');
+  }
+
+  function handleSliderInput(event) {
+    var $input = $(event.target);
+    if (!$input.hasClass('hlm-slider-input')) return;
+
+    var $wrap = $input.closest('.hlm-slider-filter');
+    var $minSlider = $wrap.find('.hlm-slider-min');
+    var $maxSlider = $wrap.find('.hlm-slider-max');
+    var step = parseFloat($wrap.data('step')) || 1;
+    var minVal = parseFloat($minSlider.val());
+    var maxVal = parseFloat($maxSlider.val());
+
+    // Prevent handles from crossing
+    if ($input.hasClass('hlm-slider-min') && minVal > maxVal - step) {
+      minVal = maxVal - step;
+      $minSlider.val(minVal);
+    }
+    if ($input.hasClass('hlm-slider-max') && maxVal < minVal + step) {
+      maxVal = minVal + step;
+      $maxSlider.val(maxVal);
+    }
+
+    // Update display values
+    $wrap.find('.hlm-slider-display-min').text(minVal);
+    $wrap.find('.hlm-slider-display-max').text(maxVal);
+
+    // Update hidden form fields
+    var dataMin = parseFloat($wrap.data('min'));
+    var dataMax = parseFloat($wrap.data('max'));
+    $wrap.find('.hlm-slider-hidden-min').val(minVal !== dataMin ? minVal : '');
+    $wrap.find('.hlm-slider-hidden-max').val(maxVal !== dataMax ? maxVal : '');
+
+    updateSliderTrack($wrap, $minSlider, $maxSlider);
+  }
+
+  function handleSliderChange(event) {
+    var $input = $(event.target);
+    if (!$input.hasClass('hlm-slider-input')) return;
+    handleAutoApply(event);
   }
 
   /* ==========================================================================
@@ -651,6 +732,8 @@
     .on('click', selectors.toggle, handleFilterToggle)
     .on('click', '.hlm-filter-actions a', handleClearAll)
     .on('change', selectors.form + ' input[type="checkbox"], ' + selectors.form + ' select, ' + selectors.form + ' .hlm-range-filter input[type="number"]', handleAutoApply)
+    .on('input', '.hlm-slider-input', handleSliderInput)
+    .on('change', '.hlm-slider-input', handleSliderChange)
     .on('keydown', selectors.swatchInput, handleSwatchKeyboard)
     .on('error', selectors.swatchImage, handleImageError)
     .on('hlm_filters_updated', restoreCollapseStates);
@@ -660,11 +743,15 @@
   // DOM ready
   $(function () {
     initCollapsible();
+    initSliders();
     getGlobalOverlay();
 
     if (isAjaxEnabled()) {
       $(document).off('submit.hlm').on('submit.hlm', selectors.form, handleSubmit);
     }
   });
+
+  // Re-init sliders after AJAX replaces filter HTML
+  $(document).on('hlm_filters_updated', initSliders);
 
 })(jQuery);

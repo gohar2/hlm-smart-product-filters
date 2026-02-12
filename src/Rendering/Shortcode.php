@@ -99,15 +99,16 @@ final class Shortcode
             }
 
             // Handle range/meta filters (e.g. price) — no taxonomy involved
-            if (($filter['data_source'] ?? '') === 'meta' && ($filter['type'] ?? '') === 'range') {
+            $filter_type = $filter['type'] ?? '';
+            if (($filter['data_source'] ?? '') === 'meta' && ($filter_type === 'range' || $filter_type === 'slider')) {
                 $range_data = $counts_by_filter[$key] ?? ['min' => 0, 'max' => 0];
                 $selected_range = $selected[$key] ?? [];
 
                 $item = [
                     'key' => $key,
                     'label' => (string) ($filter['label'] ?? $key),
-                    'type' => 'range',
-                    'style' => 'range',
+                    'type' => $filter_type,
+                    'style' => $filter_type,
                     'terms' => [],
                     'selected' => [],
                     'counts' => [],

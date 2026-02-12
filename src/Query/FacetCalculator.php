@@ -39,7 +39,8 @@ final class FacetCalculator
 
             // Handle range/meta filters (e.g. price) — no taxonomy involved
             $data_source = $filter['data_source'] ?? 'taxonomy';
-            if ($data_source === 'meta' && ($filter['type'] ?? '') === 'range') {
+            $filter_type = $filter['type'] ?? '';
+            if ($data_source === 'meta' && ($filter_type === 'range' || $filter_type === 'slider')) {
                 $meta_key = (string) ($filter['source_key'] ?? '');
                 if ($meta_key === '') {
                     continue;

@@ -197,13 +197,13 @@ final class Config
             $behavior = is_array($filter['behavior'] ?? null) ? $filter['behavior'] : [];
             $visibility = is_array($filter['visibility'] ?? null) ? $filter['visibility'] : [];
             $ui_style_raw = $ui['style'] ?? ($filter['style'] ?? '');
-            if ($ui_style_raw !== '' && $ui_style_raw !== 'range') {
+            if ($ui_style_raw !== '' && $ui_style_raw !== 'range' && $ui_style_raw !== 'slider') {
                 $ui_style_raw = $this->sanitize_enum($ui_style_raw, ['list', 'swatch', 'dropdown']);
                 $type_raw = $ui_style_raw === 'list' ? 'checkbox' : $ui_style_raw;
             }
-            $type = $this->sanitize_enum($type_raw ?: 'checkbox', ['checkbox', 'dropdown', 'swatch', 'range']);
-            if ($type === 'range') {
-                $ui_style = 'range';
+            $type = $this->sanitize_enum($type_raw ?: 'checkbox', ['checkbox', 'dropdown', 'swatch', 'range', 'slider']);
+            if ($type === 'range' || $type === 'slider') {
+                $ui_style = $type;
             } else {
                 $ui_style = $this->sanitize_enum($ui_style_raw ?: ($type === 'checkbox' ? 'list' : $type), ['list', 'swatch', 'dropdown']);
             }

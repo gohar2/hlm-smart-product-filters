@@ -81,6 +81,9 @@
         items.append('<div class=\"hlm-admin-dropdown\"><span>Select ' + dataSource + '</span><span class=\"dashicons dashicons-arrow-down-alt2\"></span></div>');
       } else if (type === 'range') {
         items.addClass('hlm-preview-range');
+        items.append('<div class=\"hlm-admin-range\"><span>Min</span><span class=\"hlm-range-separator\">—</span><span>Max</span></div>');
+      } else if (type === 'slider') {
+        items.addClass('hlm-preview-range');
         items.append('<div class=\"hlm-admin-range\"><span>Min</span><span class=\"hlm-range-slider\"></span><span>Max</span></div>');
       } else {
         items.addClass('hlm-preview-checkboxes');
@@ -97,13 +100,15 @@
   function updateTypeVisibility($row) {
     var type = $row.find('[name*="[type]"]').val() || 'checkbox';
     var isSwatch = type === 'swatch';
-    var isRange = type === 'range';
+    var isRange = type === 'range' || type === 'slider';
+    var isSlider = type === 'slider';
     var showMore = type === 'checkbox' || type === 'swatch';
     var isList = type === 'checkbox';
     $row.find('.hlm-swatch-only').toggleClass('is-hidden', !isSwatch);
     $row.find('.hlm-show-more-only').toggleClass('is-hidden', !showMore);
     $row.find('.hlm-list-only').toggleClass('is-hidden', !isList);
     $row.find('.hlm-range-only').toggleClass('is-hidden', !isRange);
+    $row.find('.hlm-slider-only').toggleClass('is-hidden', !isSlider);
   }
 
   function updateSourceFromPicker($row) {
@@ -178,9 +183,9 @@
         $idInput.val('price');
       }
 
-      // Auto-set type to range
+      // Auto-set type to range (unless already slider)
       var $typeSelect = $row.find('[name*="[type]"]');
-      if ($typeSelect.val() !== 'range') {
+      if ($typeSelect.val() !== 'range' && $typeSelect.val() !== 'slider') {
         $typeSelect.val('range').trigger('change');
       }
 

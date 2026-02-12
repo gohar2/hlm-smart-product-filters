@@ -92,7 +92,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                                 <input type="number"
                                     name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][min]"
                                     value="<?php echo esc_attr($sel_min !== null ? $sel_min : ''); ?>"
-                                    min="<?php echo esc_attr($range_min); ?>"
+                                    min="<?php echo esc_attr(max(0, $range_min)); ?>"
                                     max="<?php echo esc_attr($range_max); ?>"
                                     step="<?php echo esc_attr($step); ?>"
                                     placeholder="<?php echo esc_attr($range_min); ?>"
@@ -109,7 +109,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                                 <input type="number"
                                     name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][max]"
                                     value="<?php echo esc_attr($sel_max !== null ? $sel_max : ''); ?>"
-                                    min="<?php echo esc_attr($range_min); ?>"
+                                    min="<?php echo esc_attr(max(0, $range_min)); ?>"
                                     max="<?php echo esc_attr($range_max); ?>"
                                     step="<?php echo esc_attr($step); ?>"
                                     placeholder="<?php echo esc_attr($range_max); ?>"
@@ -119,6 +119,53 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                                 <?php endif; ?>
                             </label>
                         </div>
+                    </div>
+                    <?php else : ?>
+                        <p class="hlm-empty"><?php echo esc_html__('No price data available.', 'hlm-smart-product-filters'); ?></p>
+                    <?php endif; ?>
+                <?php elseif ($style === 'slider') : ?>
+                    <?php
+                    $range_min = $filter['range_min'] ?? 0;
+                    $range_max = $filter['range_max'] ?? 0;
+                    $sel_min = $filter['selected_min'] ?? null;
+                    $sel_max = $filter['selected_max'] ?? null;
+                    $step = $filter['range_step'] ?? 1;
+                    $prefix = $filter['range_prefix'] ?? '';
+                    $suffix = $filter['range_suffix'] ?? '';
+                    $cur_min = $sel_min !== null ? $sel_min : $range_min;
+                    $cur_max = $sel_max !== null ? $sel_max : $range_max;
+                    ?>
+                    <?php if ($range_min < $range_max) : ?>
+                    <div class="hlm-slider-filter" data-min="<?php echo esc_attr($range_min); ?>" data-max="<?php echo esc_attr($range_max); ?>" data-step="<?php echo esc_attr($step); ?>">
+                        <div class="hlm-slider-values">
+                            <span class="hlm-slider-value-min">
+                                <?php if ($prefix !== '') : ?><span class="hlm-range-prefix"><?php echo esc_html($prefix); ?></span><?php endif; ?>
+                                <span class="hlm-slider-display-min"><?php echo esc_html($cur_min); ?></span>
+                                <?php if ($suffix !== '') : ?><span class="hlm-range-suffix"><?php echo esc_html($suffix); ?></span><?php endif; ?>
+                            </span>
+                            <span class="hlm-range-separator">&mdash;</span>
+                            <span class="hlm-slider-value-max">
+                                <?php if ($prefix !== '') : ?><span class="hlm-range-prefix"><?php echo esc_html($prefix); ?></span><?php endif; ?>
+                                <span class="hlm-slider-display-max"><?php echo esc_html($cur_max); ?></span>
+                                <?php if ($suffix !== '') : ?><span class="hlm-range-suffix"><?php echo esc_html($suffix); ?></span><?php endif; ?>
+                            </span>
+                        </div>
+                        <div class="hlm-slider-track">
+                            <input type="range" class="hlm-slider-input hlm-slider-min"
+                                min="<?php echo esc_attr(max(0, $range_min)); ?>"
+                                max="<?php echo esc_attr($range_max); ?>"
+                                step="<?php echo esc_attr($step); ?>"
+                                value="<?php echo esc_attr($cur_min); ?>"
+                                aria-label="<?php echo esc_attr(sprintf(__('Minimum %s', 'hlm-smart-product-filters'), $filter['label'])); ?>">
+                            <input type="range" class="hlm-slider-input hlm-slider-max"
+                                min="<?php echo esc_attr(max(0, $range_min)); ?>"
+                                max="<?php echo esc_attr($range_max); ?>"
+                                step="<?php echo esc_attr($step); ?>"
+                                value="<?php echo esc_attr($cur_max); ?>"
+                                aria-label="<?php echo esc_attr(sprintf(__('Maximum %s', 'hlm-smart-product-filters'), $filter['label'])); ?>">
+                        </div>
+                        <input type="hidden" name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][min]" value="<?php echo esc_attr($sel_min !== null ? $sel_min : ''); ?>" class="hlm-slider-hidden-min">
+                        <input type="hidden" name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][max]" value="<?php echo esc_attr($sel_max !== null ? $sel_max : ''); ?>" class="hlm-slider-hidden-max">
                     </div>
                     <?php else : ?>
                         <p class="hlm-empty"><?php echo esc_html__('No price data available.', 'hlm-smart-product-filters'); ?></p>

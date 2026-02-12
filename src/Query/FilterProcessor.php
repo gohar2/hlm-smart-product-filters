@@ -49,8 +49,9 @@ final class FilterProcessor
             $data_source = $filter['data_source'] ?? 'taxonomy';
             $source_key = $filter['source_key'] ?? '';
 
-            // Handle meta-based range filters (e.g. price)
-            if ($data_source === 'meta' && $source_key !== '' && ($filter['type'] ?? '') === 'range') {
+            // Handle meta-based range/slider filters (e.g. price)
+            $filter_type = $filter['type'] ?? '';
+            if ($data_source === 'meta' && $source_key !== '' && ($filter_type === 'range' || $filter_type === 'slider')) {
                 $range = is_array($values) ? $values : [];
                 $min = isset($range['min']) && $range['min'] !== '' ? (float) $range['min'] : null;
                 $max = isset($range['max']) && $range['max'] !== '' ? (float) $range['max'] : null;
