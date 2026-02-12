@@ -702,6 +702,55 @@ aside .hlm-filters-wrap,
   display: block;
 }
 
+/* ── Range Filter ───────────────────────────────────────── */
+.hlm-range-filter {
+  padding: var(--hlm-spacing, 12px) 0 0;
+}
+.hlm-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hlm-range-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.hlm-range-inputs input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--hlm-border, #e2e8f0);
+  border-radius: calc(var(--hlm-radius, 10px) / 2);
+  font-size: inherit;
+  font-family: inherit;
+  color: var(--hlm-text, #0f172a);
+  background: var(--hlm-bg, #ffffff);
+  -moz-appearance: textfield;
+}
+.hlm-range-inputs input[type="number"]::-webkit-outer-spin-button,
+.hlm-range-inputs input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.hlm-range-inputs input[type="number"]:focus {
+  outline: 3px solid var(--hlm-accent, #0f766e);
+  outline-offset: 1px;
+  border-color: var(--hlm-accent, #0f766e);
+}
+.hlm-range-separator {
+  color: var(--hlm-muted, #64748b);
+  flex-shrink: 0;
+}
+.hlm-range-prefix,
+.hlm-range-suffix {
+  color: var(--hlm-muted, #64748b);
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
 /* Ensure filters form takes full width */
 .widget .hlm-filters,
 .sidebar .hlm-filters,

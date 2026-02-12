@@ -97,11 +97,13 @@
   function updateTypeVisibility($row) {
     var type = $row.find('[name*="[type]"]').val() || 'checkbox';
     var isSwatch = type === 'swatch';
+    var isRange = type === 'range';
     var showMore = type === 'checkbox' || type === 'swatch';
     var isList = type === 'checkbox';
     $row.find('.hlm-swatch-only').toggleClass('is-hidden', !isSwatch);
     $row.find('.hlm-show-more-only').toggleClass('is-hidden', !showMore);
     $row.find('.hlm-list-only').toggleClass('is-hidden', !isList);
+    $row.find('.hlm-range-only').toggleClass('is-hidden', !isRange);
   }
 
   function updateSourceFromPicker($row) {
@@ -115,8 +117,12 @@
     var $idInput = $row.find('[name*="[id]"]');
     var $sourcePicker = $row.find('.hlm-source-picker');
 
+    var $metaField = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
+    var $metaInput = $row.find('[name*="[meta_source]"]');
+
     if (!value) {
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
       return;
     }
 
@@ -127,6 +133,7 @@
       $dataSource.val(value);
       $sourceKey.val(value);
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
 
       // Auto-fill label, key, id if empty
       if (!$labelInput.val()) {
@@ -149,11 +156,43 @@
           $idInput.val(normalizeKey(value));
         }
       }
+    } else if (value === 'meta') {
+      $dataSource.val('meta');
+      $customField.addClass('is-hidden');
+      $metaField.removeClass('is-hidden');
+
+      // Auto-fill from meta input if it has a value
+      if ($metaInput.val()) {
+        $sourceKey.val($metaInput.val());
+      }
+
+      // Auto-fill label, key, id
+      if (!$labelInput.val()) {
+        $labelInput.val('Price Range');
+        $row.find('.hlm-filter-title-text').text('Price Range');
+      }
+      if (!$keyInput.val()) {
+        $keyInput.val('price');
+      }
+      if (!$idInput.val()) {
+        $idInput.val('price');
+      }
+
+      // Auto-set type to range
+      var $typeSelect = $row.find('[name*="[type]"]');
+      if ($typeSelect.val() !== 'range') {
+        $typeSelect.val('range').trigger('change');
+      }
+
+      applyAutoValues($row);
+      $dataSource.trigger('change');
+      return;
     } else if (value === 'custom') {
       $dataSource.val('taxonomy');
       $customField.removeClass('is-hidden');
+      $metaField.addClass('is-hidden');
       // Keep the picker value as 'custom' - don't let it reset
-      $picker.val('custom');
+      $sourcePicker.val('custom');
       
       // Auto-fill from custom input if it has a value
       if ($customInput.val()) {
@@ -182,6 +221,7 @@
       $dataSource.val('attribute');
       $sourceKey.val(value);
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
 
       // Auto-fill label, key, id if empty
       if (!$labelInput.val()) {
@@ -219,17 +259,32 @@
     if (!$picker.length) {
       return;
     }
+    var $metaField = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
+    var $metaInput = $row.find('[name*="[meta_source]"]');
+
     if (dataSource === 'product_cat' || dataSource === 'product_tag') {
       $picker.val(dataSource);
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
+      return;
+    }
+    if (dataSource === 'meta') {
+      $picker.val('meta');
+      $customField.addClass('is-hidden');
+      $metaField.removeClass('is-hidden');
+      if (sourceKey) {
+        $metaInput.val(sourceKey);
+      }
       return;
     }
     if (dataSource === 'attribute' && sourceKey) {
       $picker.val(sourceKey);
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
       return;
     }
     if (dataSource === 'taxonomy') {
+      $metaField.addClass('is-hidden');
       // If picker is already set to 'custom', keep it that way
       if (currentPickerValue === 'custom') {
         $picker.val('custom');
@@ -247,10 +302,11 @@
         return;
       }
     }
-    // Only reset if we're not in the middle of selecting custom
-    if (currentPickerValue !== 'custom') {
+    // Only reset if we're not in the middle of selecting custom or meta
+    if (currentPickerValue !== 'custom' && currentPickerValue !== 'meta') {
       $picker.val('');
       $customField.addClass('is-hidden');
+      $metaField.addClass('is-hidden');
     }
   }
 
@@ -483,6 +539,7 @@
     var $row = $('#hlm-filters-list .hlm-filter-row').last();
     applyAutoValues($row);
     updateTypeVisibility($row);
+    updateSourcePickerFromFields($row);
     // Initialize visibility modes for new row
     updateVisibilityMode($row, 'category');
     updateVisibilityMode($row, 'tag');
@@ -569,6 +626,36 @@
 
     $(document).on('change', '.hlm-source-picker', function () {
       updateSourceFromPicker($(this).closest('.hlm-filter-row'));
+      renderPreview();
+    });
+
+    $(document).on('input', '[name*="[meta_source]"]', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      var metaValue = $(this).val();
+      $row.find('.hlm-source-key').val(metaValue);
+      $row.find('.hlm-data-source').val('meta');
+
+      // Auto-fill label, key, id from meta key
+      var $labelInput = $row.find('[name*="[label]"]');
+      var $keyInput = $row.find('[name*="[key]"]');
+      var $idInput = $row.find('[name*="[id]"]');
+
+      if (metaValue) {
+        var cleanLabel = metaValue.replace(/^_/, '').replace(/_/g, ' ');
+        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+
+        if (!$labelInput.val()) {
+          $labelInput.val(cleanLabel + ' Range');
+          $row.find('.hlm-filter-title-text').text(cleanLabel + ' Range');
+        }
+        if (!$keyInput.val()) {
+          $keyInput.val(normalizeKey(metaValue.replace(/^_/, '')));
+        }
+        if (!$idInput.val()) {
+          $idInput.val(normalizeKey(metaValue.replace(/^_/, '')));
+        }
+      }
+
       renderPreview();
     });
 

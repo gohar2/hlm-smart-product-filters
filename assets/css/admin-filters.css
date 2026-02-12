@@ -683,14 +683,6 @@
   display: none;
 }
 
-.hlm-swatch-only.is-hidden {
-  display: none !important;
-}
-
-.hlm-filter-actions .hlm-swatch-only.is-hidden {
-  display: none;
-}
-
 .hlm-filter-advanced.is-hidden {
   display: none;
 }
@@ -699,8 +691,14 @@
   background: #fff;
 }
 
-.hlm-custom-source.is-hidden {
-  display: none;
+/* Conditional fields: hidden when not applicable */
+.hlm-swatch-only.is-hidden,
+.hlm-custom-source.is-hidden,
+.hlm-meta-source.is-hidden,
+.hlm-range-only.is-hidden,
+.hlm-show-more-only.is-hidden,
+.hlm-list-only.is-hidden {
+  display: none !important;
 }
 
 .hlm-multi-actions {

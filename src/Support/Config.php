@@ -181,22 +181,32 @@ final class Config
             }
 
             $type_raw = $filter['type'] ?? '';
-            $data_source = $this->sanitize_enum($filter['data_source'] ?? 'taxonomy', ['taxonomy', 'attribute', 'product_cat', 'product_tag']);
-            $source_key = $this->sanitize_key($filter['source_key'] ?? '');
-            if ($data_source === 'attribute' && strpos($source_key, 'pa_') === 0) {
-                $source_key = substr($source_key, 3);
+            $data_source = $this->sanitize_enum($filter['data_source'] ?? 'taxonomy', ['taxonomy', 'attribute', 'product_cat', 'product_tag', 'meta']);
+            $source_key_raw = (string) ($filter['source_key'] ?? '');
+            if ($data_source === 'meta') {
+                // Meta keys like _price contain underscores — sanitize_key strips leading underscores
+                $source_key = sanitize_text_field($source_key_raw);
+            } else {
+                $source_key = $this->sanitize_key($source_key_raw);
+                if ($data_source === 'attribute' && strpos($source_key, 'pa_') === 0) {
+                    $source_key = substr($source_key, 3);
+                }
             }
             $ui = is_array($filter['ui'] ?? null) ? $filter['ui'] : [];
 
             $behavior = is_array($filter['behavior'] ?? null) ? $filter['behavior'] : [];
             $visibility = is_array($filter['visibility'] ?? null) ? $filter['visibility'] : [];
             $ui_style_raw = $ui['style'] ?? ($filter['style'] ?? '');
-            if ($ui_style_raw !== '') {
+            if ($ui_style_raw !== '' && $ui_style_raw !== 'range') {
                 $ui_style_raw = $this->sanitize_enum($ui_style_raw, ['list', 'swatch', 'dropdown']);
                 $type_raw = $ui_style_raw === 'list' ? 'checkbox' : $ui_style_raw;
             }
             $type = $this->sanitize_enum($type_raw ?: 'checkbox', ['checkbox', 'dropdown', 'swatch', 'range']);
-            $ui_style = $this->sanitize_enum($ui_style_raw ?: ($type === 'checkbox' || $type === 'range' ? 'list' : $type), ['list', 'swatch', 'dropdown']);
+            if ($type === 'range') {
+                $ui_style = 'range';
+            } else {
+                $ui_style = $this->sanitize_enum($ui_style_raw ?: ($type === 'checkbox' ? 'list' : $type), ['list', 'swatch', 'dropdown']);
+            }
             $ui_layout = $this->sanitize_enum($ui['layout'] ?? ($filter['layout'] ?? 'inherit'), ['inherit', 'stacked', 'inline']);
 
             $sanitized[] = [
@@ -226,6 +236,9 @@ final class Config
                     'swatch_map' => $this->sanitize_swatch_map($ui['swatch_map'] ?? ($filter['swatch_map'] ?? [])),
                     'show_more_threshold' => $this->to_int($ui['show_more_threshold'] ?? ($filter['show_more_threshold'] ?? 5), 0),
                     'layout' => $ui_layout,
+                    'range_step' => max(0.01, (float) ($ui['range_step'] ?? ($filter['range_step'] ?? 1))),
+                    'range_prefix' => sanitize_text_field((string) ($ui['range_prefix'] ?? ($filter['range_prefix'] ?? ''))),
+                    'range_suffix' => sanitize_text_field((string) ($ui['range_suffix'] ?? ($filter['range_suffix'] ?? ''))),
                 ],
             ];
         }

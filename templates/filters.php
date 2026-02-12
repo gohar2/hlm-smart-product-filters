@@ -72,7 +72,58 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
             <?php $list_id = 'hlm-filter-' . esc_attr($filter['key']); ?>
             <fieldset class="hlm-filter" aria-labelledby="<?php echo esc_attr($list_id . '-label'); ?>" data-density="<?php echo esc_attr($ui_density); ?>" data-header-style="<?php echo esc_attr($ui_header_style); ?>">
                 <legend id="<?php echo esc_attr($list_id . '-label'); ?>"><?php echo esc_html($filter['label']); ?></legend>
-                <?php if ($style === 'dropdown') : ?>
+                <?php if ($style === 'range') : ?>
+                    <?php
+                    $range_min = $filter['range_min'] ?? 0;
+                    $range_max = $filter['range_max'] ?? 0;
+                    $sel_min = $filter['selected_min'] ?? null;
+                    $sel_max = $filter['selected_max'] ?? null;
+                    $step = $filter['range_step'] ?? 1;
+                    $prefix = $filter['range_prefix'] ?? '';
+                    $suffix = $filter['range_suffix'] ?? '';
+                    ?>
+                    <?php if ($range_min < $range_max) : ?>
+                    <div class="hlm-range-filter">
+                        <div class="hlm-range-inputs">
+                            <label class="hlm-range-label">
+                                <?php if ($prefix !== '') : ?>
+                                    <span class="hlm-range-prefix"><?php echo esc_html($prefix); ?></span>
+                                <?php endif; ?>
+                                <input type="number"
+                                    name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][min]"
+                                    value="<?php echo esc_attr($sel_min !== null ? $sel_min : ''); ?>"
+                                    min="<?php echo esc_attr($range_min); ?>"
+                                    max="<?php echo esc_attr($range_max); ?>"
+                                    step="<?php echo esc_attr($step); ?>"
+                                    placeholder="<?php echo esc_attr($range_min); ?>"
+                                    aria-label="<?php echo esc_attr(sprintf(__('Minimum %s', 'hlm-smart-product-filters'), $filter['label'])); ?>">
+                                <?php if ($suffix !== '') : ?>
+                                    <span class="hlm-range-suffix"><?php echo esc_html($suffix); ?></span>
+                                <?php endif; ?>
+                            </label>
+                            <span class="hlm-range-separator">&mdash;</span>
+                            <label class="hlm-range-label">
+                                <?php if ($prefix !== '') : ?>
+                                    <span class="hlm-range-prefix"><?php echo esc_html($prefix); ?></span>
+                                <?php endif; ?>
+                                <input type="number"
+                                    name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][max]"
+                                    value="<?php echo esc_attr($sel_max !== null ? $sel_max : ''); ?>"
+                                    min="<?php echo esc_attr($range_min); ?>"
+                                    max="<?php echo esc_attr($range_max); ?>"
+                                    step="<?php echo esc_attr($step); ?>"
+                                    placeholder="<?php echo esc_attr($range_max); ?>"
+                                    aria-label="<?php echo esc_attr(sprintf(__('Maximum %s', 'hlm-smart-product-filters'), $filter['label'])); ?>">
+                                <?php if ($suffix !== '') : ?>
+                                    <span class="hlm-range-suffix"><?php echo esc_html($suffix); ?></span>
+                                <?php endif; ?>
+                            </label>
+                        </div>
+                    </div>
+                    <?php else : ?>
+                        <p class="hlm-empty"><?php echo esc_html__('No price data available.', 'hlm-smart-product-filters'); ?></p>
+                    <?php endif; ?>
+                <?php elseif ($style === 'dropdown') : ?>
                     <select name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][]" aria-label="<?php echo esc_attr($filter['label']); ?>" <?php echo !empty($filter['multi_select']) ? 'multiple' : ''; ?>>
                         <option value=""><?php echo esc_html__('Any', 'hlm-smart-product-filters'); ?></option>
                         <?php foreach ($filter['terms'] as $term) : ?>

@@ -395,16 +395,29 @@ final class FiltersBuilderPage
         $layout = $filter['ui']['layout'] ?? 'inherit';
         $show_more_threshold = (string) ($filter['ui']['show_more_threshold'] ?? '');
         $swatch_map = $this->swatch_lines($filter['ui']['swatch_map'] ?? []);
+        $range_step = (string) ($filter['ui']['range_step'] ?? '1');
+        $range_prefix = (string) ($filter['ui']['range_prefix'] ?? '');
+        $range_suffix = (string) ($filter['ui']['range_suffix'] ?? '');
         $source_picker = '';
         $custom_source = '';
+        $meta_source = '';
         if ($data_source === 'product_cat' || $data_source === 'product_tag') {
             $source_picker = $data_source;
         } elseif ($data_source === 'attribute' && $source_key !== '') {
             $source_picker = $source_key;
+        } elseif ($data_source === 'meta') {
+            $source_picker = 'meta';
+            $meta_source = $source_key;
         } elseif ($data_source === 'taxonomy' && $source_key !== '') {
             $source_picker = 'custom';
             $custom_source = $source_key;
         }
+
+        // Type-based visibility flags for conditional field display
+        $is_list = ($type === 'checkbox');
+        $is_swatch = ($type === 'swatch');
+        $is_range = ($type === 'range');
+        $show_more = ($type === 'checkbox' || $type === 'swatch');
 
         echo '<li class="hlm-filter-row">';
         echo '<div class="hlm-filter-handle" title="' . esc_attr__('Drag to reorder', 'hlm-smart-product-filters') . '"><span class="dashicons dashicons-menu"></span></div>';
@@ -418,7 +431,7 @@ final class FiltersBuilderPage
         echo '</span>';
         echo '</div>';
         echo '<div class="hlm-filter-actions">';
-        echo '<button type="button" class="button hlm-edit-swatch hlm-swatch-only" data-index="' . esc_attr($index) . '"><span class="dashicons dashicons-art"></span>' . esc_html__('Swatches', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="button hlm-edit-swatch hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : '') . '" data-index="' . esc_attr($index) . '"><span class="dashicons dashicons-art"></span>' . esc_html__('Swatches', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="button-link-delete hlm-remove-filter">' . esc_html__('Remove', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
         echo '</div>';
@@ -456,6 +469,9 @@ final class FiltersBuilderPage
             );
         }
         echo '</optgroup>';
+        echo '<optgroup label="' . esc_attr__('Meta', 'hlm-smart-product-filters') . '">';
+        printf('<option value="meta" %s>%s</option>', selected($source_picker, 'meta', false), esc_html__('Meta Field (e.g. Price)', 'hlm-smart-product-filters'));
+        echo '</optgroup>';
         echo '<optgroup label="' . esc_attr__('Custom', 'hlm-smart-product-filters') . '">';
         printf('<option value="custom" %s>%s</option>', selected($source_picker, 'custom', false), esc_html__('Custom taxonomy', 'hlm-smart-product-filters'));
         echo '</optgroup>';
@@ -465,7 +481,13 @@ final class FiltersBuilderPage
 
         $this->text_field($index, 'custom_source', __('Custom taxonomy slug', 'hlm-smart-product-filters'), $custom_source, [
             'data-help' => __('Only used when Custom taxonomy is selected.', 'hlm-smart-product-filters'),
-            'wrapper_class' => 'hlm-custom-source',
+            'wrapper_class' => 'hlm-custom-source' . ($source_picker !== 'custom' ? ' is-hidden' : ''),
+        ]);
+
+        $this->text_field($index, 'meta_source', __('Meta key', 'hlm-smart-product-filters'), $meta_source, [
+            'data-help' => __('The post meta key to filter by (e.g. _price).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-meta-source' . ($data_source !== 'meta' ? ' is-hidden' : ''),
+            'placeholder' => '_price',
         ]);
 
         printf(
@@ -510,7 +532,7 @@ final class FiltersBuilderPage
             'checkbox' => __('List (checkboxes)', 'hlm-smart-product-filters'),
             'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
             'swatch' => __('Swatch', 'hlm-smart-product-filters'),
-            'range' => __('Range (coming soon)', 'hlm-smart-product-filters'),
+            'range' => __('Range (min / max)', 'hlm-smart-product-filters'),
         ], ['data-help' => __('How shoppers select options. Swatches show visual chips (color, image, or text).', 'hlm-smart-product-filters')]);
 
         $this->select_field($index, 'ui][layout', __('List layout', 'hlm-smart-product-filters'), $layout, [
@@ -519,7 +541,7 @@ final class FiltersBuilderPage
             'inline' => __('Inline (same line)', 'hlm-smart-product-filters'),
         ], [
             'data-help' => __('Only for list filters.', 'hlm-smart-product-filters'),
-            'wrapper_class' => 'hlm-list-only',
+            'wrapper_class' => 'hlm-list-only' . (!$is_list ? ' is-hidden' : ''),
         ]);
 
         $this->select_field($index, 'ui][swatch_type', __('Swatch type', 'hlm-smart-product-filters'), $swatch_type, [
@@ -528,12 +550,27 @@ final class FiltersBuilderPage
             'text' => __('Text', 'hlm-smart-product-filters'),
         ], [
             'data-help' => __('How swatches are rendered.', 'hlm-smart-product-filters'),
-            'wrapper_class' => 'hlm-swatch-only',
+            'wrapper_class' => 'hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : ''),
         ]);
 
         $this->text_field($index, 'ui][show_more_threshold', __('Show more threshold', 'hlm-smart-product-filters'), $show_more_threshold, [
             'data-help' => __('Hide options after N (list + swatch).', 'hlm-smart-product-filters'),
-            'wrapper_class' => 'hlm-show-more-only',
+            'wrapper_class' => 'hlm-show-more-only' . (!$show_more ? ' is-hidden' : ''),
+        ]);
+
+        $this->text_field($index, 'ui][range_step', __('Range step', 'hlm-smart-product-filters'), $range_step, [
+            'data-help' => __('Step increment for the range inputs (e.g. 1, 0.01).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
+            'placeholder' => '1',
+        ]);
+        $this->text_field($index, 'ui][range_prefix', __('Range prefix', 'hlm-smart-product-filters'), $range_prefix, [
+            'data-help' => __('Shown before the value (e.g. $ or £).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
+            'placeholder' => '$',
+        ]);
+        $this->text_field($index, 'ui][range_suffix', __('Range suffix', 'hlm-smart-product-filters'), $range_suffix, [
+            'data-help' => __('Shown after the value (e.g. kg, cm).', 'hlm-smart-product-filters'),
+            'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
         ]);
 
         echo '<label class="hlm-filter-checkbox">';
@@ -549,7 +586,7 @@ final class FiltersBuilderPage
         );
         echo '</label>';
         $this->textarea_field($index, 'swatch_map', __('Swatch map (term_id: value per line)', 'hlm-smart-product-filters'), $swatch_map, [
-            'wrapper_class' => 'hlm-swatch-only',
+            'wrapper_class' => 'hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : ''),
         ]);
         echo '</div>';
         echo '</div>';

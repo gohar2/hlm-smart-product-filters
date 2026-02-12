@@ -62,8 +62,30 @@ final class QueryModifier
         // Apply the filter arguments to the query
         foreach ($args as $key => $value) {
             if ($key === 'tax_query' && !empty($value)) {
-                $query->set('tax_query', $value);
+                // Merge with existing tax_query to preserve WooCommerce's conditions
+                $existing = $query->get('tax_query');
+                if (is_array($existing) && !empty($existing)) {
+                    foreach ($value as $clause) {
+                        if (is_array($clause)) {
+                            $existing[] = $clause;
+                        }
+                    }
+                    if (!isset($existing['relation'])) {
+                        $existing['relation'] = 'AND';
+                    }
+                    $query->set('tax_query', $existing);
+                } else {
+                    $query->set('tax_query', $value);
+                }
             } elseif ($key === 'post__in' && !empty($value)) {
+                // Intersect with existing post__in if present
+                $existing_in = $query->get('post__in');
+                if (is_array($existing_in) && !empty($existing_in)) {
+                    $value = array_values(array_intersect($existing_in, $value));
+                    if (empty($value)) {
+                        $value = [0]; // No intersection = no results
+                    }
+                }
                 $query->set('post__in', $value);
             } elseif ($key === 'meta_query' && !empty($value)) {
                 $query->set('meta_query', $value);

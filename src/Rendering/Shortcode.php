@@ -81,7 +81,9 @@ final class Shortcode
             'sort' => $sort_value,
             'context' => $context,
         ];
-        $counts_by_filter = $enable_counts ? $this->facets->calculate($config, $request) : [];
+        // Always calculate facets — needed both for counts display and for determining
+        // which terms are available given the current filter selections
+        $counts_by_filter = $this->facets->calculate($config, $request);
 
         $filter_items = [];
         foreach ($filters as $filter) {
@@ -95,38 +97,94 @@ final class Shortcode
             if (!$this->should_render_filter($filter, $context, $render_context)) {
                 continue;
             }
+
+            // Handle range/meta filters (e.g. price) — no taxonomy involved
+            if (($filter['data_source'] ?? '') === 'meta' && ($filter['type'] ?? '') === 'range') {
+                $range_data = $counts_by_filter[$key] ?? ['min' => 0, 'max' => 0];
+                $selected_range = $selected[$key] ?? [];
+
+                $item = [
+                    'key' => $key,
+                    'label' => (string) ($filter['label'] ?? $key),
+                    'type' => 'range',
+                    'style' => 'range',
+                    'terms' => [],
+                    'selected' => [],
+                    'counts' => [],
+                    'range_min' => (float) ($range_data['min'] ?? 0),
+                    'range_max' => (float) ($range_data['max'] ?? 0),
+                    'selected_min' => isset($selected_range['min']) && $selected_range['min'] !== '' ? (float) $selected_range['min'] : null,
+                    'selected_max' => isset($selected_range['max']) && $selected_range['max'] !== '' ? (float) $selected_range['max'] : null,
+                    'range_step' => (float) ($filter['ui']['range_step'] ?? 1),
+                    'range_prefix' => (string) ($filter['ui']['range_prefix'] ?? ''),
+                    'range_suffix' => (string) ($filter['ui']['range_suffix'] ?? ''),
+                    'multi_select' => false,
+                    'swatch_map' => [],
+                    'swatch_type' => 'color',
+                    'show_more_threshold' => 0,
+                    'layout' => 'stacked',
+                ];
+
+                $filter_items[] = apply_filters('hlm_filters_render_item', $item, $filter);
+                continue;
+            }
+
             $taxonomy = $this->resolve_taxonomy($filter);
             if ($taxonomy === '') {
                 continue;
             }
             $hide_empty = (bool) ($filter['visibility']['hide_empty'] ?? false);
-            
-            // Get product IDs based on current page context
-            $context_product_ids = $this->get_context_product_ids($context);
-            
-            // Build get_terms arguments
-            $term_args = [
-                'taxonomy' => $taxonomy,
-                'hide_empty' => false,
-                'orderby' => 'name',
-                'order' => 'ASC',
-            ];
-            
-            // Filter terms by products in current context
-            if (!empty($context_product_ids)) {
-                $term_args['object_ids'] = $context_product_ids;
+            $counts = $counts_by_filter[$key] ?? [];
+
+            // Use facet counts to determine which terms to display.
+            // This ensures terms reflect the FILTERED product set (not just page context).
+            $available_term_ids = [];
+            foreach ($counts as $term_id => $count) {
+                if ($count > 0) {
+                    $available_term_ids[] = (int) $term_id;
+                }
             }
-            
-            $terms = get_terms($term_args);
+
+            // Always include currently selected terms so the user can deselect them
+            $selected_slugs = $selected[$key] ?? [];
+            if (!empty($selected_slugs)) {
+                $selected_term_objs = get_terms([
+                    'taxonomy' => $taxonomy,
+                    'slug' => $selected_slugs,
+                    'hide_empty' => false,
+                ]);
+                if (!is_wp_error($selected_term_objs)) {
+                    foreach ($selected_term_objs as $st) {
+                        $available_term_ids[] = (int) $st->term_id;
+                    }
+                }
+            }
+            $available_term_ids = array_unique(array_filter($available_term_ids));
+
+            if ($hide_empty || !empty($request_filters)) {
+                // When filters are active or hide_empty is on: only show terms with products
+                if (!empty($available_term_ids)) {
+                    $terms = get_terms([
+                        'taxonomy' => $taxonomy,
+                        'include' => $available_term_ids,
+                        'hide_empty' => false,
+                        'orderby' => 'name',
+                        'order' => 'ASC',
+                    ]);
+                } else {
+                    $terms = [];
+                }
+            } else {
+                // No filters applied and hide_empty is off: show all terms
+                $terms = get_terms([
+                    'taxonomy' => $taxonomy,
+                    'hide_empty' => false,
+                    'orderby' => 'name',
+                    'order' => 'ASC',
+                ]);
+            }
             if (is_wp_error($terms)) {
                 $terms = [];
-            }
-            $counts = $counts_by_filter[$key] ?? [];
-            if ($hide_empty && $counts) {
-                $terms = array_values(array_filter($terms, static function ($term) use ($counts) {
-                    $term_id = (int) $term->term_id;
-                    return isset($counts[$term_id]) && $counts[$term_id] > 0;
-                }));
             }
             $layout = (string) ($filter['ui']['layout'] ?? 'inherit');
             if ($layout === '' || $layout === 'inherit') {
@@ -317,64 +375,4 @@ final class Shortcode
         return esc_url_raw($base . '?' . http_build_query($params));
     }
 
-    /**
-     * Get product IDs that match the current page context (category, tag, or custom taxonomy)
-     *
-     * @param array $context The current page context
-     * @return array Array of product IDs, or empty array if no context
-     */
-    private function get_context_product_ids(array $context): array
-    {
-        $category_id = (int) ($context['category_id'] ?? 0);
-        $tag_id = (int) ($context['tag_id'] ?? 0);
-        $custom_taxonomy = (string) ($context['custom_taxonomy'] ?? '');
-        $custom_term_id = (int) ($context['custom_term_id'] ?? 0);
-
-        // If no context, return empty array (show all products)
-        if ($category_id === 0 && $tag_id === 0 && ($custom_taxonomy === '' || $custom_term_id === 0)) {
-            return [];
-        }
-
-        // Build tax query based on context
-        $tax_query = ['relation' => 'AND'];
-        
-        if ($category_id > 0) {
-            $tax_query[] = [
-                'taxonomy' => 'product_cat',
-                'field' => 'term_id',
-                'terms' => [$category_id],
-            ];
-        }
-        
-        if ($tag_id > 0) {
-            $tax_query[] = [
-                'taxonomy' => 'product_tag',
-                'field' => 'term_id',
-                'terms' => [$tag_id],
-            ];
-        }
-        
-        if ($custom_taxonomy !== '' && $custom_term_id > 0 && taxonomy_exists($custom_taxonomy)) {
-            $tax_query[] = [
-                'taxonomy' => $custom_taxonomy,
-                'field' => 'term_id',
-                'terms' => [$custom_term_id],
-            ];
-        }
-
-        // Query products matching the context
-        $query_args = [
-            'post_type' => 'product',
-            'post_status' => 'publish',
-            'tax_query' => $tax_query,
-            'fields' => 'ids',
-            'posts_per_page' => -1,
-            'no_found_rows' => true,
-            'update_post_meta_cache' => false,
-            'update_post_term_cache' => false,
-        ];
-
-        $query = new \WP_Query($query_args);
-        return $query->posts ? array_map('intval', $query->posts) : [];
-    }
 }

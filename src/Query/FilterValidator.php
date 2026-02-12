@@ -13,7 +13,15 @@ final class FilterValidator
                 continue;
             }
             if (is_array($value)) {
-                $normalized[$key] = array_values(array_filter(array_map('sanitize_text_field', $value)));
+                // Preserve associative keys (e.g. ['min' => '10', 'max' => '100'] for range filters)
+                $sanitized = array_filter(array_map('sanitize_text_field', $value), static function ($v) {
+                    return $v !== '';
+                });
+                if ($this->is_associative($value)) {
+                    $normalized[$key] = $sanitized;
+                } else {
+                    $normalized[$key] = array_values($sanitized);
+                }
                 continue;
             }
             $normalized[$key] = [];
@@ -45,6 +53,14 @@ final class FilterValidator
         }
 
         return array_map('intval', $terms);
+    }
+
+    private function is_associative(array $arr): bool
+    {
+        if (empty($arr)) {
+            return false;
+        }
+        return array_keys($arr) !== range(0, count($arr) - 1);
     }
 
     private function split(string $value): array

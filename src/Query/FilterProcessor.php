@@ -26,13 +26,11 @@ final class FilterProcessor
         ];
         $post_in = null;
 
-        $context = $request['context'] ?? [];
-        $context_tax_query = $this->context_tax_query($context);
-        if ($context_tax_query) {
-            foreach ($context_tax_query as $clause) {
-                $tax_query[] = $clause;
-            }
-        }
+        // Track which taxonomies are actively filtered by the user.
+        // When a user selects terms from a filter, their selection OVERRIDES the page
+        // context for that taxonomy — e.g. selecting "Electronics" on a "Clothing" category
+        // page should show Electronics products, not intersect Clothing AND Electronics.
+        $user_filtered_taxonomies = [];
 
         $attribute_filters = [];
         foreach (($config['filters'] ?? []) as $filter) {
@@ -48,9 +46,45 @@ final class FilterProcessor
                 continue;
             }
 
-            $type = $filter['data_source'] ?? 'taxonomy';
+            $data_source = $filter['data_source'] ?? 'taxonomy';
             $source_key = $filter['source_key'] ?? '';
-            
+
+            // Handle meta-based range filters (e.g. price)
+            if ($data_source === 'meta' && $source_key !== '' && ($filter['type'] ?? '') === 'range') {
+                $range = is_array($values) ? $values : [];
+                $min = isset($range['min']) && $range['min'] !== '' ? (float) $range['min'] : null;
+                $max = isset($range['max']) && $range['max'] !== '' ? (float) $range['max'] : null;
+
+                if ($min !== null && $max !== null) {
+                    $defaults['meta_query'] = $defaults['meta_query'] ?? ['relation' => 'AND'];
+                    $defaults['meta_query'][] = [
+                        'key' => $source_key,
+                        'value' => [$min, $max],
+                        'type' => 'NUMERIC',
+                        'compare' => 'BETWEEN',
+                    ];
+                } elseif ($min !== null) {
+                    $defaults['meta_query'] = $defaults['meta_query'] ?? ['relation' => 'AND'];
+                    $defaults['meta_query'][] = [
+                        'key' => $source_key,
+                        'value' => $min,
+                        'type' => 'NUMERIC',
+                        'compare' => '>=',
+                    ];
+                } elseif ($max !== null) {
+                    $defaults['meta_query'] = $defaults['meta_query'] ?? ['relation' => 'AND'];
+                    $defaults['meta_query'][] = [
+                        'key' => $source_key,
+                        'value' => $max,
+                        'type' => 'NUMERIC',
+                        'compare' => '<=',
+                    ];
+                }
+                continue;
+            }
+
+            $type = $data_source;
+
             // Resolve taxonomy based on data source type
             if ($type === 'product_cat') {
                 $taxonomy = 'product_cat';
@@ -63,10 +97,8 @@ final class FilterProcessor
                     $taxonomy = wc_attribute_taxonomy_name($source_key);
                 }
             } elseif ($type === 'custom' && $source_key !== '') {
-                // Custom taxonomy - use source_key directly
                 $taxonomy = $source_key;
             } elseif ($source_key !== '') {
-                // Fallback: use source_key as taxonomy
                 $taxonomy = $source_key;
             } else {
                 $taxonomy = '';
@@ -80,6 +112,9 @@ final class FilterProcessor
             if (!$term_ids) {
                 continue;
             }
+
+            // Mark this taxonomy as user-filtered so context doesn't duplicate it
+            $user_filtered_taxonomies[$taxonomy] = true;
 
             $operator = ($filter['behavior']['operator'] ?? 'OR') === 'AND' ? 'AND' : 'IN';
 
@@ -99,9 +134,7 @@ final class FilterProcessor
                 'operator' => $operator,
             ];
 
-            // Handle include_children for hierarchical taxonomies (like product_cat)
-            // Use WordPress's built-in include_children parameter for better performance and accuracy
-            if (($taxonomy === 'product_cat' || is_taxonomy_hierarchical($taxonomy)) && 
+            if (($taxonomy === 'product_cat' || is_taxonomy_hierarchical($taxonomy)) &&
                 !empty($filter['visibility']['include_children'])) {
                 $tax_clause['include_children'] = true;
             } else {
@@ -111,52 +144,21 @@ final class FilterProcessor
             $tax_query[] = $tax_clause;
         }
 
-        if ($attribute_filters && $this->lookup_table_exists()) {
-            $lookup_ids = $this->lookup_products_for_attributes($attribute_filters);
-            if ($post_in === null) {
-                $post_in = $lookup_ids;
-            } else {
-                $post_in = array_values(array_intersect($post_in, $lookup_ids));
+        // Add context (page category/tag) ONLY for taxonomies not already filtered by the user.
+        // This allows the user's filter selection to override the page context for that taxonomy.
+        $context = $request['context'] ?? [];
+        $context_tax_query = $this->context_tax_query($context);
+        foreach ($context_tax_query as $clause) {
+            $ctx_taxonomy = $clause['taxonomy'] ?? '';
+            if ($ctx_taxonomy !== '' && !isset($user_filtered_taxonomies[$ctx_taxonomy])) {
+                $tax_query[] = $clause;
             }
         }
 
-        // If we have post__in from attribute filters AND context, we need to intersect
-        // the post__in with products matching the context
-        if (is_array($post_in) && !empty($post_in) && !empty($context_tax_query)) {
-            $context_query = new \WP_Query([
-                'post_type' => 'product',
-                'post_status' => 'publish',
-                'tax_query' => $context_tax_query,
-                'fields' => 'ids',
-                'posts_per_page' => -1,
-                'no_found_rows' => true,
-                'update_post_meta_cache' => false,
-                'update_post_term_cache' => false,
-            ]);
-            $context_product_ids = $context_query->posts ? array_map('intval', $context_query->posts) : [];
-            if (!empty($context_product_ids)) {
-                $post_in = array_values(array_intersect($post_in, $context_product_ids));
-            } else {
-                // No products match context, so no results
-                $post_in = [];
-            }
-            // Remove context from tax_query since we're handling it via post__in intersection
-            $tax_query = array_filter($tax_query, function($clause) use ($context_tax_query) {
-                if (!is_array($clause) || !isset($clause['taxonomy'])) {
-                    return true;
-                }
-                foreach ($context_tax_query as $context_clause) {
-                    if (isset($context_clause['taxonomy']) && 
-                        $context_clause['taxonomy'] === $clause['taxonomy'] &&
-                        isset($context_clause['terms']) && 
-                        isset($clause['terms']) &&
-                        $context_clause['terms'] === $clause['terms']) {
-                        return false;
-                    }
-                }
-                return true;
-            });
-            $tax_query = array_values($tax_query);
+        // Apply attribute filters via lookup table
+        if ($attribute_filters && $this->lookup_table_exists()) {
+            $lookup_ids = $this->lookup_products_for_attributes($attribute_filters);
+            $post_in = $lookup_ids;
         }
 
         if (is_array($post_in)) {
@@ -171,9 +173,26 @@ final class FilterProcessor
                 break;
             }
         }
-        
+
         if ($has_filters) {
             $defaults['tax_query'] = $tax_query;
+        }
+
+        // Exclude hidden/out-of-stock products (WooCommerce visibility)
+        $defaults['tax_query'] = $defaults['tax_query'] ?? ['relation' => 'AND'];
+        $defaults['tax_query'][] = [
+            'taxonomy' => 'product_visibility',
+            'field' => 'name',
+            'terms' => ['exclude-from-catalog'],
+            'operator' => 'NOT IN',
+        ];
+        if ('yes' === get_option('woocommerce_hide_out_of_stock_items')) {
+            $defaults['tax_query'][] = [
+                'taxonomy' => 'product_visibility',
+                'field' => 'name',
+                'terms' => ['outofstock'],
+                'operator' => 'NOT IN',
+            ];
         }
 
         $defaults['posts_per_page'] = $this->sanitize_int(
@@ -272,23 +291,6 @@ final class FilterProcessor
         $table = $wpdb->prefix . 'wc_product_attributes_lookup';
         $exists = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
         return $exists;
-    }
-
-    private function lookup_product_ids(string $taxonomy, array $term_ids): array
-    {
-        global $wpdb;
-        $table = $wpdb->prefix . 'wc_product_attributes_lookup';
-        if (!$term_ids) {
-            return [];
-        }
-
-        $placeholders = implode(',', array_fill(0, count($term_ids), '%d'));
-        $sql = $wpdb->prepare(
-            "SELECT DISTINCT product_id FROM {$table} WHERE taxonomy = %s AND term_id IN ({$placeholders})",
-            array_merge([$taxonomy], $term_ids)
-        );
-        $results = $wpdb->get_col($sql);
-        return array_map('intval', $results);
     }
 
     private function lookup_products_for_attributes(array $attribute_filters): array

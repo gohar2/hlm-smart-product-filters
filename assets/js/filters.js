@@ -633,6 +633,9 @@
           $(this).find('option:first').prop('selected', true);
       });
 
+      // Clear all range inputs
+      $form.find('.hlm-range-filter input[type="number"]').val('');
+
       clearPage($form);
       $form.trigger('submit');
   }
@@ -647,7 +650,7 @@
     .on('click', selectors.showMore, handleShowMore)
     .on('click', selectors.toggle, handleFilterToggle)
     .on('click', '.hlm-filter-actions a', handleClearAll)
-    .on('change', selectors.form + ' input[type="checkbox"], ' + selectors.form + ' select', handleAutoApply)
+    .on('change', selectors.form + ' input[type="checkbox"], ' + selectors.form + ' select, ' + selectors.form + ' .hlm-range-filter input[type="number"]', handleAutoApply)
     .on('keydown', selectors.swatchInput, handleSwatchKeyboard)
     .on('error', selectors.swatchImage, handleImageError)
     .on('hlm_filters_updated', restoreCollapseStates);
