@@ -284,7 +284,7 @@ final class FacetCalculator
                  WHERE pm.meta_key = %s
                    AND pm.post_id IN ({$placeholders})
                    AND pm.meta_value != ''
-                   AND pm.meta_value REGEXP '^[0-9]'
+                   AND pm.meta_value REGEXP '^[0-9.]'
                  GROUP BY pm.post_id
              ) AS product_prices",
             array_merge([$meta_key], $product_ids)
