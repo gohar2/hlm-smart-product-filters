@@ -26,6 +26,16 @@ final class AutoInjector
             return;
         }
 
+        $should_render =
+        (is_shop() && !empty($config['global']['auto_on_shop'])) ||
+        (is_product_category() && !empty($config['global']['auto_on_categories'])) ||
+        (is_product_tag() && !empty($config['global']['auto_on_tags'])) ||
+        (is_tax() && !is_product_category() && !is_product_tag());
+
+        if (!$should_render) {
+            return;
+        }
+
         $hook = $config['global']['auto_hook'] ?? 'woocommerce_before_shop_loop';
         if ($hook === '') {
             $hook = 'woocommerce_before_shop_loop';
@@ -39,16 +49,6 @@ final class AutoInjector
         $config = $this->config->get();
         $mode = $config['global']['render_mode'] ?? 'shortcode';
         if ($mode === 'shortcode') {
-            return;
-        }
-
-        $should_render =
-        (is_shop() && !empty($config['global']['auto_on_shop'])) ||
-        (is_product_category() && !empty($config['global']['auto_on_categories'])) ||
-        (is_product_tag() && !empty($config['global']['auto_on_tags'])) ||
-        (is_tax() && !is_product_category() && !is_product_tag());
-
-        if (!$should_render) {
             return;
         }
 
