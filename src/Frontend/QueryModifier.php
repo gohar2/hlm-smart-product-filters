@@ -31,8 +31,14 @@ final class QueryModifier
             return;
         }
 
-        // Only modify product queries
-        if ($query->get('post_type') !== 'product') {
+        // Only modify product queries — handle string, array, or empty post_type
+        // On custom taxonomy archives, post_type may be empty or an array
+        $post_type = $query->get('post_type');
+        if (is_array($post_type)) {
+            if (!in_array('product', $post_type, true)) {
+                return;
+            }
+        } elseif ($post_type !== '' && $post_type !== 'product') {
             return;
         }
 
@@ -55,6 +61,11 @@ final class QueryModifier
         if (empty($request['filters'])) {
             return;
         }
+
+        // Ensure we only query products (important on custom taxonomy archives
+        // where post_type may be empty or include non-product types)
+        $query->set('post_type', 'product');
+        $query->set('post_status', 'publish');
 
         $processor = new FilterProcessor();
         $args = $processor->build_args($config, $request);
