@@ -1,0 +1,317 @@
+/* ==========================================================================
+   HLM Smart Product Filters — Admin Settings
+   Clean, professional design aligned with WP admin aesthetics
+   ========================================================================== */
+
+/* ---------- Reset & Base ---------- */
+#hlm-settings-form *,
+#hlm-settings-form *::before,
+#hlm-settings-form *::after {
+    box-sizing: border-box;
+}
+
+#hlm-settings-form {
+    --hlm-accent: #2271b1;
+    --hlm-accent-hover: #135e96;
+    --hlm-accent-light: #f0f6fc;
+    --hlm-accent-border: #2271b1;
+    --hlm-bg: #fff;
+    --hlm-bg-subtle: #f9fafb;
+    --hlm-border: #e0e4e9;
+    --hlm-border-light: #eef0f3;
+    --hlm-text: #1e1e1e;
+    --hlm-text-secondary: #646970;
+    --hlm-text-muted: #9ca0a6;
+    --hlm-radius: 6px;
+    --hlm-radius-lg: 10px;
+    --hlm-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --hlm-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
+    --hlm-transition: 0.2s ease;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    max-width: 100%;
+    margin-top: 20px;
+}
+
+/* ---------- Page Title ---------- */
+.wrap > h1:first-of-type {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--hlm-text);
+    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+}
+
+/* ---------- Tab Navigation ---------- */
+.hlm-settings-tabs {
+    background: var(--hlm-bg);
+    border: 1px solid var(--hlm-border);
+    border-radius: var(--hlm-radius-lg);
+    box-shadow: var(--hlm-shadow);
+    overflow: hidden;
+}
+
+.hlm-tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--hlm-border);
+    background: var(--hlm-bg-subtle);
+    padding: 0 4px;
+}
+
+.hlm-tab-button {
+    position: relative;
+    padding: 13px 22px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hlm-text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color var(--hlm-transition), border-color var(--hlm-transition);
+    margin-bottom: -1px;
+    letter-spacing: 0.01em;
+}
+
+.hlm-tab-button:hover {
+    color: var(--hlm-text);
+}
+
+.hlm-tab-button.active {
+    color: var(--hlm-accent);
+    border-bottom-color: var(--hlm-accent);
+    background: var(--hlm-bg);
+}
+
+/* ---------- Tab Panels ---------- */
+.hlm-tab-panels {
+    padding: 0;
+}
+
+.hlm-tab-panel {
+    display: none;
+    padding: 28px 32px 16px;
+}
+
+.hlm-tab-panel.active {
+    display: block;
+}
+
+/* ---------- Two-Column Layout ---------- */
+.hlm-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+.hlm-column {
+    padding: 0 32px;
+}
+
+.hlm-column:first-child {
+    padding-left: 0;
+    border-right: 1px solid var(--hlm-border-light);
+}
+
+.hlm-column:last-child {
+    padding-right: 0;
+}
+
+/* ---------- Section Group Titles ---------- */
+.hlm-settings-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--hlm-text-muted);
+    margin: 28px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--hlm-border-light);
+}
+
+.hlm-settings-group-title:first-child {
+    margin-top: 0;
+}
+
+/* ---------- Field Rows ---------- */
+.hlm-settings-field {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    align-items: start;
+    gap: 12px 20px;
+    padding: 11px 0;
+    border-bottom: 1px solid transparent;
+}
+
+.hlm-settings-field:hover {
+    border-bottom-color: var(--hlm-border-light);
+}
+
+/* Label */
+.hlm-settings-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hlm-text);
+    padding-top: 5px;
+    line-height: 1.5;
+}
+
+/* ---------- Input Controls ---------- */
+.hlm-settings-field input[type="text"],
+.hlm-settings-field input[type="number"],
+.hlm-settings-field select {
+    width: 100%;
+    max-width: 340px;
+    padding: 7px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--hlm-text);
+    background: var(--hlm-bg);
+    border: 1px solid var(--hlm-border);
+    border-radius: var(--hlm-radius);
+    transition: border-color var(--hlm-transition), box-shadow var(--hlm-transition);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) inset;
+}
+
+.hlm-settings-field input[type="text"]:focus,
+.hlm-settings-field input[type="number"]:focus,
+.hlm-settings-field select:focus {
+    border-color: var(--hlm-accent-border);
+    box-shadow: 0 0 0 1px var(--hlm-accent-border);
+    outline: none;
+}
+
+.hlm-settings-field select {
+    max-width: 360px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23646970' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+/* ---------- Checkbox ---------- */
+.hlm-checkbox-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--hlm-text-secondary);
+    cursor: pointer;
+    padding: 4px 0;
+    font-weight: 400;
+}
+
+.hlm-checkbox-wrapper input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--hlm-accent);
+}
+
+/* ---------- Color Picker Override ---------- */
+.hlm-settings-field .wp-picker-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hlm-settings-field .wp-picker-container .wp-color-result {
+    border-radius: var(--hlm-radius) !important;
+    border: 1px solid var(--hlm-border) !important;
+    box-shadow: var(--hlm-shadow) !important;
+    height: 30px !important;
+    min-width: 30px !important;
+}
+
+.hlm-settings-field .wp-picker-container input.wp-color-picker {
+    max-width: 120px;
+}
+
+/* ---------- Description Text ---------- */
+.hlm-settings-field .description {
+    grid-column: 2;
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--hlm-text-muted);
+    line-height: 1.5;
+    font-style: normal;
+}
+
+/* ---------- Submit Button ---------- */
+#hlm-settings-form .submit {
+    padding: 20px 32px 28px;
+    margin: 0;
+    border-top: 1px solid var(--hlm-border);
+    background: var(--hlm-bg-subtle);
+    border-radius: 0 0 var(--hlm-radius-lg) var(--hlm-radius-lg);
+}
+
+#hlm-settings-form .submit .button-primary {
+    padding: 8px 24px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--hlm-radius);
+    background: var(--hlm-accent);
+    border-color: var(--hlm-accent);
+    box-shadow: none;
+    text-shadow: none;
+    letter-spacing: 0.01em;
+    transition: background var(--hlm-transition);
+}
+
+#hlm-settings-form .submit .button-primary:hover {
+    background: var(--hlm-accent-hover);
+    border-color: var(--hlm-accent-hover);
+}
+
+/* ---------- Elementor Template Field ---------- */
+.hlm-settings-field select[name*="elementor_template_id"] {
+    max-width: 360px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 782px) {
+    #hlm-settings-form {
+        max-width: 100%;
+    }
+
+    .hlm-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .hlm-column {
+        padding: 0 !important;
+        border-right: none !important;
+    }
+
+    .hlm-column:first-child {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--hlm-border-light);
+    }
+
+    .hlm-settings-field {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .hlm-settings-label {
+        padding-top: 0;
+    }
+
+    .hlm-settings-field .description {
+        grid-column: 1;
+    }
+
+    .hlm-tab-panel {
+        padding: 20px 18px 12px;
+    }
+
+    #hlm-settings-form .submit {
+        padding: 16px 18px 24px;
+    }
+}
