@@ -79,6 +79,7 @@ final class SettingsPage
         $this->add_text_field('cache_ttl_seconds', __('Cache TTL (seconds)', 'hlm-smart-product-filters'));
         $this->add_text_field('products_per_page', __('Products per page', 'hlm-smart-product-filters'));
         $this->add_text_field('default_sort', __('Default sort', 'hlm-smart-product-filters'));
+        $this->add_checkbox_field('enable_sort', __('Enable Sort By', 'hlm-smart-product-filters'));
         $this->add_checkbox_field('debug_mode', __('Debug mode', 'hlm-smart-product-filters'));
         $this->add_checkbox_field('enable_apply_button', __('Enable Apply button', 'hlm-smart-product-filters'));
         $this->add_checkbox_field('enable_counts', __('Enable counts', 'hlm-smart-product-filters'));
@@ -191,6 +192,7 @@ final class SettingsPage
         echo '<h2 class="hlm-settings-group-title">' . esc_html__('Product Display', 'hlm-smart-product-filters') . '</h2>';
         $this->render_field('products_per_page', 'text');
         $this->render_field('default_sort', 'text');
+        $this->render_field('enable_sort', 'checkbox');
         $this->render_field('product_render_mode', 'select', [
             'woocommerce' => __('WooCommerce loop', 'hlm-smart-product-filters'),
             'elementor' => __('Elementor template', 'hlm-smart-product-filters'),
@@ -322,6 +324,7 @@ final class SettingsPage
             'cache_ttl_seconds' => __('Cache TTL (seconds)', 'hlm-smart-product-filters'),
             'products_per_page' => __('Products per page', 'hlm-smart-product-filters'),
             'default_sort' => __('Default sort', 'hlm-smart-product-filters'),
+            'enable_sort' => __('Enable Sort By', 'hlm-smart-product-filters'),
             'debug_mode' => __('Debug mode', 'hlm-smart-product-filters'),
             'enable_apply_button' => __('Enable Apply button', 'hlm-smart-product-filters'),
             'enable_counts' => __('Enable counts', 'hlm-smart-product-filters'),

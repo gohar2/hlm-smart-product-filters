@@ -68,8 +68,13 @@ final class Shortcode
         do_action('hlm_filters_before_render', $config, $filters);
 
         $request_filters = $request['filters'] ?? [];
-        $sort_value = (string) ($request['sort'] ?? '');
-        if ($sort_value === '') {
+        $enable_sort = (bool) ($config['global']['enable_sort'] ?? true);
+        if ($enable_sort) {
+            $sort_value = (string) ($request['sort'] ?? '');
+            if ($sort_value === '') {
+                $sort_value = (string) ($config['global']['default_sort'] ?? 'menu_order');
+            }
+        } else {
             $sort_value = (string) ($config['global']['default_sort'] ?? 'menu_order');
         }
         $selected = $this->validator->normalize(is_array($request_filters) ? $request_filters : []);
@@ -222,6 +227,7 @@ final class Shortcode
             'enable_counts' => $enable_counts,
             'context' => $context,
             'enable_apply_button' => (bool) ($config['global']['enable_apply_button'] ?? false),
+            'enable_sort' => $enable_sort,
             'render_context' => $render_context,
             'ui_density' => $config['global']['ui']['density'] ?? 'comfy',
             'ui_header_style' => $config['global']['ui']['header_style'] ?? 'pill',

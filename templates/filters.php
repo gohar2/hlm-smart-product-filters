@@ -44,6 +44,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
     <?php endif; ?>
     <input type="hidden" name="hlm_render_context" value="<?php echo esc_attr($render_context); ?>">
 
+    <?php if (!empty($enable_sort)) : ?>
     <div class="hlm-filter-sort">
         <label>
             <?php echo esc_html__('Sort by', 'hlm-smart-product-filters'); ?>
@@ -58,6 +59,7 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
             </select>
         </label>
     </div>
+    <?php endif; ?>
 
     <?php if (!$filters) : ?>
         <p><?php echo esc_html__('No filters configured.', 'hlm-smart-product-filters'); ?></p>

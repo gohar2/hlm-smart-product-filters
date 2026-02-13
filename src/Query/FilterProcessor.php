@@ -201,7 +201,9 @@ final class FilterProcessor
             1
         );
 
-        $sort = $request['sort'] ?? ($config['global']['default_sort'] ?? 'menu_order');
+        $enable_sort = (bool) ($config['global']['enable_sort'] ?? true);
+        $default_sort = (string) ($config['global']['default_sort'] ?? 'menu_order');
+        $sort = $enable_sort ? ($request['sort'] ?? $default_sort) : $default_sort;
         $this->apply_sort($defaults, (string) $sort);
 
         if (!empty($request['page'])) {
