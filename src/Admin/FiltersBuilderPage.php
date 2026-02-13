@@ -22,6 +22,7 @@ final class FiltersBuilderPage
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_post_hlm_save_filters', [$this, 'handle_save']);
         add_action('admin_post_hlm_load_sample_filters', [$this, 'handle_load_samples']);
+        add_action('admin_post_hlm_import_filters', [$this, 'handle_import']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
@@ -39,7 +40,7 @@ final class FiltersBuilderPage
 
     public function enqueue_assets(string $hook): void
     {
-        if ($hook !== 'toplevel_page_hlm-product-filters' && $hook !== 'hlm-product-filters_page_' . $this->page_slug) {
+        if ($hook !== 'hlm-product-filters_page_' . $this->page_slug) {
             return;
         }
 
@@ -60,13 +61,23 @@ final class FiltersBuilderPage
 
         $this->load_data();
         wp_localize_script('hlm-filters-admin', 'HLMFiltersAdmin', [
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('hlm_filters_admin_nonce'),
+            'ajaxUrl'    => admin_url('admin-ajax.php'),
+            'nonce'      => wp_create_nonce('hlm_filters_admin_nonce'),
             'categories' => $this->categories,
-            'tags' => $this->tags,
+            'tags'       => $this->tags,
+            'i18n'       => [
+                'confirmRemove'  => __('Remove this filter?', 'hlm-smart-product-filters'),
+                'confirmReplace' => __('This will replace your current filters. Continue?', 'hlm-smart-product-filters'),
+                'validationFail' => __('Please fill in all required fields before saving.', 'hlm-smart-product-filters'),
+                'noSource'       => __('Please set a valid source key first.', 'hlm-smart-product-filters'),
+                'termLoadFail'   => __('Failed to load terms.', 'hlm-smart-product-filters'),
+            ],
         ]);
     }
 
+    /* ------------------------------------------------------------------
+     * Save Handler
+     * ----------------------------------------------------------------*/
     public function handle_save(): void
     {
         if (!current_user_can('manage_woocommerce')) {
@@ -80,44 +91,15 @@ final class FiltersBuilderPage
             $filters = [];
         }
 
-        foreach ($filters as &$filter) {
-            if (isset($filter['visibility'])) {
-                $category_mode = $filter['visibility']['category_mode'] ?? 'all';
-                $tag_mode = $filter['visibility']['tag_mode'] ?? 'all';
-
-                if ($category_mode === 'all') {
-                    $filter['visibility']['show_on_categories'] = [];
-                    $filter['visibility']['hide_on_categories'] = [];
-                } elseif ($category_mode === 'exclude') {
-                    // When exclude mode, the form sends to hide_on_categories field
-                    $filter['visibility']['hide_on_categories'] = $filter['visibility']['hide_on_categories'] ?? [];
-                    $filter['visibility']['show_on_categories'] = [];
-                } else {
-                    // When include mode, the form sends to show_on_categories field
-                    $filter['visibility']['hide_on_categories'] = [];
-                }
-
-                if ($tag_mode === 'all') {
-                    $filter['visibility']['show_on_tags'] = [];
-                    $filter['visibility']['hide_on_tags'] = [];
-                } elseif ($tag_mode === 'exclude') {
-                    // When exclude mode, the form sends to hide_on_tags field
-                    $filter['visibility']['hide_on_tags'] = $filter['visibility']['hide_on_tags'] ?? [];
-                    $filter['visibility']['show_on_tags'] = [];
-                } else {
-                    // When include mode, the form sends to show_on_tags field
-                    $filter['visibility']['hide_on_tags'] = [];
-                }
-
-                unset($filter['visibility']['category_mode']);
-                unset($filter['visibility']['tag_mode']);
-            }
+        $sanitized = [];
+        foreach ($filters as $filter) {
+            $sanitized[] = $this->sanitize_filter($filter);
         }
 
         $current = $this->config->get();
         $data = [
-            'global' => $current['global'] ?? $this->config->defaults()['global'],
-            'filters' => $filters,
+            'global'  => $current['global'] ?? $this->config->defaults()['global'],
+            'filters' => $sanitized,
         ];
 
         $this->config->update($data);
@@ -126,6 +108,107 @@ final class FiltersBuilderPage
         exit;
     }
 
+    private function sanitize_filter(array $filter): array
+    {
+        $clean = [
+            'id'          => sanitize_key($filter['id'] ?? ''),
+            'label'       => sanitize_text_field($filter['label'] ?? ''),
+            'key'         => sanitize_key($filter['key'] ?? ''),
+            'type'        => sanitize_key($filter['type'] ?? 'checkbox'),
+            'data_source' => sanitize_key($filter['data_source'] ?? 'taxonomy'),
+            'source_key'  => sanitize_text_field($filter['source_key'] ?? ''),
+            'render_mode' => sanitize_key($filter['render_mode'] ?? 'both'),
+            'behavior'    => [
+                'multi_select' => !empty($filter['behavior']['multi_select']),
+                'operator'     => in_array(($filter['behavior']['operator'] ?? 'OR'), ['OR', 'AND'], true)
+                    ? $filter['behavior']['operator'] : 'OR',
+            ],
+            'visibility'  => $this->sanitize_visibility($filter['visibility'] ?? []),
+            'ui'          => $this->sanitize_ui($filter['ui'] ?? [], $filter['type'] ?? 'checkbox'),
+        ];
+
+        // Auto-generate id/key from label if missing
+        if (!$clean['id'] && $clean['label']) {
+            $clean['id'] = sanitize_key(str_replace(' ', '_', strtolower($clean['label'])));
+        }
+        if (!$clean['key'] && $clean['id']) {
+            $clean['key'] = $clean['id'];
+        }
+
+        // Parse swatch_map from textarea
+        if (!empty($filter['swatch_map'])) {
+            $clean['ui']['swatch_map'] = $this->parse_swatch_map_text($filter['swatch_map']);
+        }
+
+        return $clean;
+    }
+
+    private function sanitize_visibility(array $vis): array
+    {
+        $category_mode = $vis['category_mode'] ?? 'all';
+        $tag_mode      = $vis['tag_mode'] ?? 'all';
+
+        $clean = [
+            'hide_empty'          => !empty($vis['hide_empty']),
+            'include_children'    => !empty($vis['include_children']),
+            'include_tag_children' => !empty($vis['include_tag_children']),
+            'show_on_categories'  => [],
+            'hide_on_categories'  => [],
+            'show_on_tags'        => [],
+            'hide_on_tags'        => [],
+        ];
+
+        if ($category_mode === 'include') {
+            $clean['show_on_categories'] = array_map('absint', (array) ($vis['show_on_categories'] ?? []));
+        } elseif ($category_mode === 'exclude') {
+            $clean['hide_on_categories'] = array_map('absint', (array) ($vis['hide_on_categories'] ?? []));
+        }
+
+        if ($tag_mode === 'include') {
+            $clean['show_on_tags'] = array_map('absint', (array) ($vis['show_on_tags'] ?? []));
+        } elseif ($tag_mode === 'exclude') {
+            $clean['hide_on_tags'] = array_map('absint', (array) ($vis['hide_on_tags'] ?? []));
+        }
+
+        return $clean;
+    }
+
+    private function sanitize_ui(array $ui, string $type): array
+    {
+        $clean = [
+            'layout'              => in_array(($ui['layout'] ?? 'inherit'), ['inherit', 'stacked', 'inline'], true)
+                ? $ui['layout'] : 'inherit',
+            'swatch_type'         => in_array(($ui['swatch_type'] ?? 'color'), ['color', 'image', 'text'], true)
+                ? $ui['swatch_type'] : 'color',
+            'show_more_threshold' => absint($ui['show_more_threshold'] ?? 0),
+            'range_step'          => sanitize_text_field($ui['range_step'] ?? '1'),
+            'range_prefix'        => sanitize_text_field($ui['range_prefix'] ?? ''),
+            'range_suffix'        => sanitize_text_field($ui['range_suffix'] ?? ''),
+        ];
+
+        return $clean;
+    }
+
+    private function parse_swatch_map_text(string $text): array
+    {
+        $map = [];
+        $lines = preg_split('/\r?\n/', $text);
+        foreach ($lines as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $id = trim($parts[0]);
+                $value = trim($parts[1]);
+                if ($id !== '' && $value !== '') {
+                    $map[(int) $id] = sanitize_text_field($value);
+                }
+            }
+        }
+        return $map;
+    }
+
+    /* ------------------------------------------------------------------
+     * Template Loader
+     * ----------------------------------------------------------------*/
     public function handle_load_samples(): void
     {
         if (!current_user_can('manage_woocommerce')) {
@@ -134,7 +217,7 @@ final class FiltersBuilderPage
 
         check_admin_referer('hlm_load_sample_filters');
 
-        $template = isset($_GET['template']) ? sanitize_key($_GET['template']) : 'standard';
+        $template  = isset($_GET['template']) ? sanitize_key($_GET['template']) : 'standard';
         $templates = $this->get_filter_templates();
 
         if (!isset($templates[$template])) {
@@ -143,20 +226,23 @@ final class FiltersBuilderPage
 
         $current = $this->config->get();
         $data = [
-            'global' => $current['global'] ?? $this->config->defaults()['global'],
-            'filters' => $this->get_template($template),
+            'global'  => $current['global'] ?? $this->config->defaults()['global'],
+            'filters' => $templates[$template]['filters'],
         ];
 
         $this->config->update($data);
 
         wp_safe_redirect(add_query_arg([
-            'page' => $this->page_slug,
+            'page'           => $this->page_slug,
             'samples_loaded' => 'true',
-            'template_name' => rawurlencode($templates[$template]['name']),
+            'template_name'  => rawurlencode($templates[$template]['name']),
         ], admin_url('admin.php')));
         exit;
     }
 
+    /* ------------------------------------------------------------------
+     * Import Handler
+     * ----------------------------------------------------------------*/
     public function handle_import(): void
     {
         if (!current_user_can('manage_woocommerce')) {
@@ -165,49 +251,38 @@ final class FiltersBuilderPage
 
         check_admin_referer('hlm_import_filters');
 
+        $redirect_args = ['page' => $this->page_slug];
+
         if (empty($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
-            wp_safe_redirect(add_query_arg([
-                'page' => $this->page_slug,
-                'import_error' => 'no_file',
-            ], admin_url('admin.php')));
-            exit;
+            $redirect_args['import_error'] = 'no_file';
+        } else {
+            $file_content = file_get_contents($_FILES['import_file']['tmp_name']);
+            $import_data  = json_decode($file_content, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($import_data)) {
+                $redirect_args['import_error'] = 'invalid_json';
+            } elseif (empty($import_data['filters']) || !is_array($import_data['filters'])) {
+                $redirect_args['import_error'] = 'no_filters';
+            } else {
+                $current = $this->config->get();
+                $data = [
+                    'global'  => $import_data['global'] ?? $current['global'] ?? $this->config->defaults()['global'],
+                    'filters' => $import_data['filters'],
+                ];
+                $this->config->update($data);
+
+                $redirect_args['imported'] = 'true';
+                $redirect_args['count']    = count($import_data['filters']);
+            }
         }
 
-        $file_content = file_get_contents($_FILES['import_file']['tmp_name']);
-        $import_data = json_decode($file_content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($import_data)) {
-            wp_safe_redirect(add_query_arg([
-                'page' => $this->page_slug,
-                'import_error' => 'invalid_json',
-            ], admin_url('admin.php')));
-            exit;
-        }
-
-        if (empty($import_data['filters']) || !is_array($import_data['filters'])) {
-            wp_safe_redirect(add_query_arg([
-                'page' => $this->page_slug,
-                'import_error' => 'no_filters',
-            ], admin_url('admin.php')));
-            exit;
-        }
-
-        $current = $this->config->get();
-        $data = [
-            'global' => $import_data['global'] ?? $current['global'] ?? $this->config->defaults()['global'],
-            'filters' => $import_data['filters'],
-        ];
-
-        $this->config->update($data);
-
-        wp_safe_redirect(add_query_arg([
-            'page' => $this->page_slug,
-            'imported' => 'true',
-            'count' => count($import_data['filters']),
-        ], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
 
+    /* ------------------------------------------------------------------
+     * Page Render
+     * ----------------------------------------------------------------*/
     public function render_page(): void
     {
         if (!current_user_can('manage_woocommerce')) {
@@ -215,58 +290,13 @@ final class FiltersBuilderPage
         }
 
         $this->load_data();
-        $config = $this->config->get();
+        $config  = $this->config->get();
         $filters = $config['filters'] ?? [];
 
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__('HLM Filters Builder', 'hlm-smart-product-filters') . '</h1>';
 
-        // Show success notification
-        if (isset($_GET['updated']) && $_GET['updated'] === 'true') {
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            echo esc_html__('Filters saved successfully.', 'hlm-smart-product-filters');
-            echo '</p></div>';
-        }
-
-        // Show samples loaded notification
-        if (isset($_GET['samples_loaded']) && $_GET['samples_loaded'] === 'true') {
-            $template_name = isset($_GET['template_name']) ? sanitize_text_field(rawurldecode($_GET['template_name'])) : '';
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            if ($template_name) {
-                printf(
-                    /* translators: %s: template name */
-                    esc_html__('"%s" template loaded successfully.', 'hlm-smart-product-filters'),
-                    esc_html($template_name)
-                );
-            } else {
-                echo esc_html__('Sample filters loaded successfully.', 'hlm-smart-product-filters');
-            }
-            echo '</p></div>';
-        }
-
-        // Show import success notification
-        if (isset($_GET['imported']) && $_GET['imported'] === 'true') {
-            $count = isset($_GET['count']) ? absint($_GET['count']) : 0;
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            printf(
-                /* translators: %d: number of filters imported */
-                esc_html(_n('Successfully imported %d filter.', 'Successfully imported %d filters.', $count, 'hlm-smart-product-filters')),
-                $count
-            );
-            echo '</p></div>';
-        }
-
-        // Show import error notifications
-        if (isset($_GET['import_error'])) {
-            $error_messages = [
-                'no_file' => __('No file was uploaded. Please select a file to import.', 'hlm-smart-product-filters'),
-                'invalid_json' => __('Invalid JSON file. Please upload a valid export file.', 'hlm-smart-product-filters'),
-                'no_filters' => __('No filters found in the import file.', 'hlm-smart-product-filters'),
-            ];
-            $error_key = sanitize_key($_GET['import_error']);
-            $error_message = $error_messages[$error_key] ?? __('An error occurred during import.', 'hlm-smart-product-filters');
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_message) . '</p></div>';
-        }
+        $this->render_notices();
 
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
         echo '<input type="hidden" name="action" value="hlm_save_filters">';
@@ -300,7 +330,9 @@ final class FiltersBuilderPage
         }
         echo '</ul>';
 
-        echo '<button type="button" class="button button-primary" id="hlm-add-filter"><span class="dashicons dashicons-plus-alt2"></span> ' . esc_html__('Add Filter', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="button button-primary" id="hlm-add-filter">';
+        echo '<span class="dashicons dashicons-plus-alt2"></span> ' . esc_html__('Add Filter', 'hlm-smart-product-filters');
+        echo '</button>';
         echo '<p class="submit">';
         submit_button(__('Save Filters', 'hlm-smart-product-filters'), 'primary', 'submit', false);
         echo '</p>';
@@ -313,116 +345,125 @@ final class FiltersBuilderPage
         echo '</div>';
     }
 
-
-    private function render_debug_section(): void
+    private function render_notices(): void
     {
-        $config = $this->config->get();
-
-        echo '<details class="hlm-debug-section">';
-        echo '<summary class="hlm-debug-toggle">';
-        echo '<span class="dashicons dashicons-info-outline"></span> ';
-        echo esc_html__('Debug Information', 'hlm-smart-product-filters');
-        echo '</summary>';
-
-        echo '<div class="hlm-debug-content">';
-
-        // System info
-        echo '<div class="hlm-debug-panel">';
-        echo '<h4>' . esc_html__('System Information', 'hlm-smart-product-filters') . '</h4>';
-        echo '<table class="hlm-debug-table">';
-        echo '<tr><td>' . esc_html__('PHP Version', 'hlm-smart-product-filters') . '</td><td>' . esc_html(PHP_VERSION) . '</td></tr>';
-        echo '<tr><td>' . esc_html__('WordPress Version', 'hlm-smart-product-filters') . '</td><td>' . esc_html(get_bloginfo('version')) . '</td></tr>';
-        echo '<tr><td>' . esc_html__('WooCommerce Version', 'hlm-smart-product-filters') . '</td><td>' . esc_html(defined('WC_VERSION') ? WC_VERSION : 'N/A') . '</td></tr>';
-        echo '<tr><td>' . esc_html__('Active Theme', 'hlm-smart-product-filters') . '</td><td>' . esc_html(wp_get_theme()->get('Name')) . '</td></tr>';
-        echo '<tr><td>' . esc_html__('Memory Limit', 'hlm-smart-product-filters') . '</td><td>' . esc_html(WP_MEMORY_LIMIT) . '</td></tr>';
-        echo '</table>';
-        echo '</div>';
-
-        // Filter stats
-        $filter_count = count($config['filters'] ?? []);
-        $filter_types = [];
-        foreach ($config['filters'] ?? [] as $filter) {
-            $type = $filter['type'] ?? 'unknown';
-            $filter_types[$type] = ($filter_types[$type] ?? 0) + 1;
+        if (isset($_GET['updated']) && $_GET['updated'] === 'true') {
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            echo esc_html__('Filters saved successfully.', 'hlm-smart-product-filters');
+            echo '</p></div>';
         }
 
-        echo '<div class="hlm-debug-panel">';
-        echo '<h4>' . esc_html__('Filter Statistics', 'hlm-smart-product-filters') . '</h4>';
-        echo '<table class="hlm-debug-table">';
-        echo '<tr><td>' . esc_html__('Total Filters', 'hlm-smart-product-filters') . '</td><td>' . esc_html($filter_count) . '</td></tr>';
-        foreach ($filter_types as $type => $count) {
-            echo '<tr><td>' . esc_html(ucfirst($type)) . '</td><td>' . esc_html($count) . '</td></tr>';
+        if (isset($_GET['samples_loaded']) && $_GET['samples_loaded'] === 'true') {
+            $template_name = isset($_GET['template_name']) ? sanitize_text_field(rawurldecode($_GET['template_name'])) : '';
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            if ($template_name) {
+                printf(esc_html__('"%s" template loaded successfully.', 'hlm-smart-product-filters'), esc_html($template_name));
+            } else {
+                echo esc_html__('Sample filters loaded successfully.', 'hlm-smart-product-filters');
+            }
+            echo '</p></div>';
         }
-        echo '</table>';
-        echo '</div>';
 
-        // Shortcode info
-        echo '<div class="hlm-debug-panel">';
-        echo '<h4>' . esc_html__('Shortcode Usage', 'hlm-smart-product-filters') . '</h4>';
-        echo '<code class="hlm-shortcode-example">[hlm_filters]</code>';
-        echo '<p class="description">' . esc_html__('Place this shortcode on your shop page or in a sidebar widget.', 'hlm-smart-product-filters') . '</p>';
-        echo '</div>';
+        if (isset($_GET['imported']) && $_GET['imported'] === 'true') {
+            $count = isset($_GET['count']) ? absint($_GET['count']) : 0;
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            printf(
+                esc_html(_n('Successfully imported %d filter.', 'Successfully imported %d filters.', $count, 'hlm-smart-product-filters')),
+                $count
+            );
+            echo '</p></div>';
+        }
 
-        // Raw config (collapsed)
-        echo '<details class="hlm-debug-raw">';
-        echo '<summary>' . esc_html__('Raw Configuration (JSON)', 'hlm-smart-product-filters') . '</summary>';
-        echo '<pre class="hlm-debug-json">' . esc_html(wp_json_encode($config, JSON_PRETTY_PRINT)) . '</pre>';
-        echo '</details>';
-
-        echo '</div>';
-        echo '</details>';
+        if (isset($_GET['import_error'])) {
+            $error_messages = [
+                'no_file'      => __('No file was uploaded. Please select a file to import.', 'hlm-smart-product-filters'),
+                'invalid_json' => __('Invalid JSON file. Please upload a valid export file.', 'hlm-smart-product-filters'),
+                'no_filters'   => __('No filters found in the import file.', 'hlm-smart-product-filters'),
+            ];
+            $error_key     = sanitize_key($_GET['import_error']);
+            $error_message = $error_messages[$error_key] ?? __('An error occurred during import.', 'hlm-smart-product-filters');
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_message) . '</p></div>';
+        }
     }
 
+    /* ------------------------------------------------------------------
+     * Filter Row
+     * ----------------------------------------------------------------*/
     private function render_filter_row($index, array $filter): void
     {
-        $label = esc_attr($filter['label'] ?? '');
-        $key = esc_attr($filter['key'] ?? '');
-        $id = esc_attr($filter['id'] ?? $key);
-        $type = $filter['type'] ?? 'checkbox';
+        $label       = esc_attr($filter['label'] ?? '');
+        $key         = esc_attr($filter['key'] ?? '');
+        $id          = esc_attr($filter['id'] ?? $key);
+        $type        = $filter['type'] ?? 'checkbox';
         $data_source = $filter['data_source'] ?? 'taxonomy';
-        $source_key = esc_attr($filter['source_key'] ?? '');
+        $source_key  = esc_attr($filter['source_key'] ?? '');
         $render_mode = $filter['render_mode'] ?? 'both';
+
+        // Behavior
         $multi_select = !empty($filter['behavior']['multi_select']);
-        $operator = $filter['behavior']['operator'] ?? 'OR';
-        $hide_empty = !empty($filter['visibility']['hide_empty']);
-        $include_children = !empty($filter['visibility']['include_children']);
+        $operator     = $filter['behavior']['operator'] ?? 'OR';
+
+        // Visibility
+        $hide_empty           = !empty($filter['visibility']['hide_empty']);
+        $include_children     = !empty($filter['visibility']['include_children']);
         $include_tag_children = !empty($filter['visibility']['include_tag_children']);
-        $show_on_categories = $filter['visibility']['show_on_categories'] ?? [];
-        $hide_on_categories = $filter['visibility']['hide_on_categories'] ?? [];
-        $show_on_tags = $filter['visibility']['show_on_tags'] ?? [];
-        $hide_on_tags = $filter['visibility']['hide_on_tags'] ?? [];
-        $swatch_type = $filter['ui']['swatch_type'] ?? 'color';
-        $layout = $filter['ui']['layout'] ?? 'inherit';
-        $show_more_threshold = (string) ($filter['ui']['show_more_threshold'] ?? '');
-        $swatch_map = $this->swatch_lines($filter['ui']['swatch_map'] ?? []);
-        $range_step = (string) ($filter['ui']['range_step'] ?? '1');
-        $range_prefix = (string) ($filter['ui']['range_prefix'] ?? '');
-        $range_suffix = (string) ($filter['ui']['range_suffix'] ?? '');
+        $show_on_categories   = $filter['visibility']['show_on_categories'] ?? [];
+        $hide_on_categories   = $filter['visibility']['hide_on_categories'] ?? [];
+        $show_on_tags         = $filter['visibility']['show_on_tags'] ?? [];
+        $hide_on_tags         = $filter['visibility']['hide_on_tags'] ?? [];
+
+        // UI
+        $swatch_type          = $filter['ui']['swatch_type'] ?? 'color';
+        $layout               = $filter['ui']['layout'] ?? 'inherit';
+        $show_more_threshold  = (string) ($filter['ui']['show_more_threshold'] ?? '');
+        $swatch_map           = $this->swatch_lines($filter['ui']['swatch_map'] ?? []);
+        $range_step           = (string) ($filter['ui']['range_step'] ?? '1');
+        $range_prefix         = (string) ($filter['ui']['range_prefix'] ?? '');
+        $range_suffix         = (string) ($filter['ui']['range_suffix'] ?? '');
+
+        // Resolve source picker value
         $source_picker = '';
         $custom_source = '';
-        $meta_source = '';
+        $meta_source   = '';
         if ($data_source === 'product_cat' || $data_source === 'product_tag') {
             $source_picker = $data_source;
         } elseif ($data_source === 'attribute' && $source_key !== '') {
             $source_picker = $source_key;
         } elseif ($data_source === 'meta') {
             $source_picker = 'meta';
-            $meta_source = $source_key;
+            $meta_source   = $source_key;
         } elseif ($data_source === 'taxonomy' && $source_key !== '') {
             $source_picker = 'custom';
             $custom_source = $source_key;
         }
 
-        // Type-based visibility flags for conditional field display
-        $is_list = ($type === 'checkbox');
+        // Type-based visibility flags
+        $is_list   = ($type === 'checkbox');
         $is_swatch = ($type === 'swatch');
-        $is_range = ($type === 'range' || $type === 'slider');
+        $is_range  = ($type === 'range' || $type === 'slider');
         $is_slider = ($type === 'slider');
         $show_more = ($type === 'checkbox' || $type === 'swatch');
+
+        // Visibility modes
+        $category_mode = 'all';
+        if (!empty($show_on_categories)) {
+            $category_mode = 'include';
+        } elseif (!empty($hide_on_categories)) {
+            $category_mode = 'exclude';
+        }
+
+        $tag_mode = 'all';
+        if (!empty($show_on_tags)) {
+            $tag_mode = 'include';
+        } elseif (!empty($hide_on_tags)) {
+            $tag_mode = 'exclude';
+        }
 
         echo '<li class="hlm-filter-row">';
         echo '<div class="hlm-filter-handle" title="' . esc_attr__('Drag to reorder', 'hlm-smart-product-filters') . '"><span class="dashicons dashicons-menu"></span></div>';
         echo '<div class="hlm-filter-card">';
+
+        // --- Header ---
         echo '<div class="hlm-filter-header">';
         echo '<div class="hlm-filter-title">';
         echo '<strong class="hlm-filter-title-text">' . esc_html($label ?: __('New Filter', 'hlm-smart-product-filters')) . '</strong>';
@@ -436,25 +477,32 @@ final class FiltersBuilderPage
         echo '<button type="button" class="button-link-delete hlm-remove-filter">' . esc_html__('Remove', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
         echo '</div>';
+
+        // --- Tabs ---
         echo '<div class="hlm-filter-tabs">';
         echo '<div class="hlm-tab-nav" role="tablist">';
         echo '<button type="button" class="hlm-tab-button active" role="tab" aria-selected="true" data-tab="general">' . esc_html__('General', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="behavior">' . esc_html__('Behavior', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="ui">' . esc_html__('UI', 'hlm-smart-product-filters') . '</button>';
         echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="visibility">' . esc_html__('Visibility', 'hlm-smart-product-filters') . '</button>';
-        // echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="advanced">' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
+        echo '<button type="button" class="hlm-tab-button" role="tab" aria-selected="false" data-tab="advanced">' . esc_html__('Advanced', 'hlm-smart-product-filters') . '</button>';
         echo '</div>';
+
         echo '<div class="hlm-tab-panels">';
+
+        // === General Tab ===
         echo '<div class="hlm-tab-panel active" role="tabpanel" data-tab="general">';
         echo '<div class="hlm-filter-section">';
 
         $this->text_field($index, 'label', __('Label', 'hlm-smart-product-filters'), $label, [
-            'data-help' => __('Shown to shoppers.', 'hlm-smart-product-filters'),
-            'required' => true,
+            'data-help'       => __('Shown to shoppers.', 'hlm-smart-product-filters'),
+            'required'        => true,
             'data-validation' => __('Label is required', 'hlm-smart-product-filters'),
         ]);
+
+        // Source picker
         echo '<label class="hlm-filter-field hlm-source-field">' . esc_html__('Source', 'hlm-smart-product-filters');
-        echo '<select class="hlm-source-picker" name="filters[' . esc_attr($index) . '][source_picker]" data-required="true">';
+        echo '<select class="hlm-source-picker" data-required="true">';
         echo '<option value="">' . esc_html__('Select source', 'hlm-smart-product-filters') . '</option>';
         echo '<optgroup label="' . esc_attr__('Built-in', 'hlm-smart-product-filters') . '">';
         printf('<option value="product_cat" %s>%s</option>', selected($source_picker, 'product_cat', false), esc_html__('Product categories', 'hlm-smart-product-filters'));
@@ -481,37 +529,28 @@ final class FiltersBuilderPage
         echo '</label>';
 
         $this->text_field($index, 'custom_source', __('Custom taxonomy slug', 'hlm-smart-product-filters'), $custom_source, [
-            'data-help' => __('Only used when Custom taxonomy is selected.', 'hlm-smart-product-filters'),
+            'data-help'     => __('Only used when Custom taxonomy is selected.', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-custom-source' . ($source_picker !== 'custom' ? ' is-hidden' : ''),
         ]);
 
         $this->text_field($index, 'meta_source', __('Meta key', 'hlm-smart-product-filters'), $meta_source, [
-            'data-help' => __('The post meta key to filter by (e.g. _price).', 'hlm-smart-product-filters'),
+            'data-help'     => __('The post meta key to filter by (e.g. _price).', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-meta-source' . ($data_source !== 'meta' ? ' is-hidden' : ''),
-            'placeholder' => '_price',
+            'placeholder'   => '_price',
         ]);
 
-        printf(
-            '<input type="hidden" name="filters[%s][data_source]" value="%s" class="hlm-data-source">',
-            esc_attr($index),
-            esc_attr($data_source)
-        );
-        printf(
-            '<input type="hidden" name="filters[%s][source_key]" value="%s" class="hlm-source-key">',
-            esc_attr($index),
-            esc_attr($source_key)
-        );
+        printf('<input type="hidden" name="filters[%s][data_source]" value="%s" class="hlm-data-source">', esc_attr($index), esc_attr($data_source));
+        printf('<input type="hidden" name="filters[%s][source_key]" value="%s" class="hlm-source-key">', esc_attr($index), esc_attr($source_key));
 
-        echo '</div>';
-        echo '</div>';
+        echo '</div>'; // .hlm-filter-section
+        echo '</div>'; // general tab
 
+        // === Behavior Tab ===
         echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="behavior">';
         echo '<div class="hlm-filter-section">';
+
         echo '<label class="hlm-filter-checkbox">';
-        printf(
-            '<input type="hidden" name="filters[%s][behavior][multi_select]" value="0">',
-            esc_attr($index)
-        );
+        printf('<input type="hidden" name="filters[%s][behavior][multi_select]" value="0">', esc_attr($index));
         printf(
             '<input type="checkbox" name="filters[%s][behavior][multi_select]" value="1" %s> %s',
             esc_attr($index),
@@ -521,65 +560,76 @@ final class FiltersBuilderPage
         echo '</label>';
 
         $this->select_field($index, 'behavior][operator', __('Operator', 'hlm-smart-product-filters'), $operator, [
-            'OR' => __('OR', 'hlm-smart-product-filters'),
+            'OR'  => __('OR', 'hlm-smart-product-filters'),
             'AND' => __('AND', 'hlm-smart-product-filters'),
         ], ['data-help' => __('How multi-select combines values.', 'hlm-smart-product-filters')]);
+
         echo '</div>';
         echo '</div>';
 
+        // === UI Tab ===
         echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="ui">';
         echo '<div class="hlm-filter-section">';
+
         $this->select_field($index, 'type', __('Display type', 'hlm-smart-product-filters'), $type, [
             'checkbox' => __('List (checkboxes)', 'hlm-smart-product-filters'),
             'dropdown' => __('Dropdown', 'hlm-smart-product-filters'),
-            'swatch' => __('Swatch', 'hlm-smart-product-filters'),
-            'range' => __('Range (min / max)', 'hlm-smart-product-filters'),
-            'slider' => __('Slider', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('How shoppers select options. Swatches show visual chips (color, image, or text).', 'hlm-smart-product-filters')]);
+            'swatch'   => __('Swatch', 'hlm-smart-product-filters'),
+            'range'    => __('Range (min / max)', 'hlm-smart-product-filters'),
+            'slider'   => __('Slider', 'hlm-smart-product-filters'),
+        ], ['data-help' => __('How shoppers select options.', 'hlm-smart-product-filters')]);
 
         $this->select_field($index, 'ui][layout', __('List layout', 'hlm-smart-product-filters'), $layout, [
-            'inherit' => __('Use default (settings)', 'hlm-smart-product-filters'),
-            'stacked' => __('Stacked (new lines)', 'hlm-smart-product-filters'),
-            'inline' => __('Inline (same line)', 'hlm-smart-product-filters'),
+            'inherit'  => __('Use default (settings)', 'hlm-smart-product-filters'),
+            'stacked'  => __('Stacked (new lines)', 'hlm-smart-product-filters'),
+            'inline'   => __('Inline (same line)', 'hlm-smart-product-filters'),
         ], [
-            'data-help' => __('Only for list filters.', 'hlm-smart-product-filters'),
+            'data-help'     => __('Only for list filters.', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-list-only' . (!$is_list ? ' is-hidden' : ''),
         ]);
 
         $this->select_field($index, 'ui][swatch_type', __('Swatch type', 'hlm-smart-product-filters'), $swatch_type, [
             'color' => __('Color', 'hlm-smart-product-filters'),
             'image' => __('Image URL', 'hlm-smart-product-filters'),
-            'text' => __('Text', 'hlm-smart-product-filters'),
+            'text'  => __('Text', 'hlm-smart-product-filters'),
         ], [
-            'data-help' => __('How swatches are rendered.', 'hlm-smart-product-filters'),
+            'data-help'     => __('How swatches are rendered.', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : ''),
         ]);
 
         $this->text_field($index, 'ui][show_more_threshold', __('Show more threshold', 'hlm-smart-product-filters'), $show_more_threshold, [
-            'data-help' => __('Hide options after N (list + swatch).', 'hlm-smart-product-filters'),
+            'data-help'     => __('Hide options after N items.', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-show-more-only' . (!$show_more ? ' is-hidden' : ''),
         ]);
 
         $this->text_field($index, 'ui][range_step', __('Slider step', 'hlm-smart-product-filters'), $range_step, [
-            'data-help' => __('Step increment for the slider handles (e.g. 1, 0.01).', 'hlm-smart-product-filters'),
+            'data-help'     => __('Step increment (e.g. 1, 0.01).', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-slider-only' . (!$is_slider ? ' is-hidden' : ''),
-            'placeholder' => '1',
+            'placeholder'   => '1',
         ]);
         $this->text_field($index, 'ui][range_prefix', __('Range prefix', 'hlm-smart-product-filters'), $range_prefix, [
-            'data-help' => __('Shown before the value (e.g. $ or £).', 'hlm-smart-product-filters'),
+            'data-help'     => __('Shown before the value (e.g. $).', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
-            'placeholder' => '$',
+            'placeholder'   => '$',
         ]);
         $this->text_field($index, 'ui][range_suffix', __('Range suffix', 'hlm-smart-product-filters'), $range_suffix, [
-            'data-help' => __('Shown after the value (e.g. kg, cm).', 'hlm-smart-product-filters'),
+            'data-help'     => __('Shown after the value (e.g. kg).', 'hlm-smart-product-filters'),
             'wrapper_class' => 'hlm-range-only' . (!$is_range ? ' is-hidden' : ''),
         ]);
 
+        $this->textarea_field($index, 'swatch_map', __('Swatch map (term_id: value per line)', 'hlm-smart-product-filters'), $swatch_map, [
+            'wrapper_class' => 'hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : ''),
+        ]);
+
+        echo '</div>';
+        echo '</div>';
+
+        // === Visibility Tab ===
+        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="visibility">';
+        echo '<div class="hlm-filter-section">';
+
         echo '<label class="hlm-filter-checkbox">';
-        printf(
-            '<input type="hidden" name="filters[%s][visibility][hide_empty]" value="0">',
-            esc_attr($index)
-        );
+        printf('<input type="hidden" name="filters[%s][visibility][hide_empty]" value="0">', esc_attr($index));
         printf(
             '<input type="checkbox" name="filters[%s][visibility][hide_empty]" value="1" %s> %s',
             esc_attr($index),
@@ -587,53 +637,20 @@ final class FiltersBuilderPage
             esc_html__('Hide empty terms', 'hlm-smart-product-filters')
         );
         echo '</label>';
-        $this->textarea_field($index, 'swatch_map', __('Swatch map (term_id: value per line)', 'hlm-smart-product-filters'), $swatch_map, [
-            'wrapper_class' => 'hlm-swatch-only' . (!$is_swatch ? ' is-hidden' : ''),
-        ]);
-        echo '</div>';
-        echo '</div>';
 
-        echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="visibility">';
-        echo '<div class="hlm-filter-section">';
-        $category_mode = 'all';
-        if (!empty($show_on_categories)) {
-            $category_mode = 'include';
-        } elseif (!empty($hide_on_categories)) {
-            $category_mode = 'exclude';
-        }
-
-        $tag_mode = 'all';
-        if (!empty($show_on_tags)) {
-            $tag_mode = 'include';
-        } elseif (!empty($hide_on_tags)) {
-            $tag_mode = 'exclude';
-        }
-
+        // Category visibility
         echo '<div class="hlm-visibility-group">';
         echo '<label class="hlm-filter-field-label">' . esc_html__('Category visibility', 'hlm-smart-product-filters') . '</label>';
         echo '<div class="hlm-visibility-modes">';
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][category_mode]" value="all" %s> %s</label>',
-            esc_attr($index),
-            checked($category_mode, 'all', false),
-            esc_html__('All', 'hlm-smart-product-filters')
-        );
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][category_mode]" value="include" %s> %s</label>',
-            esc_attr($index),
-            checked($category_mode, 'include', false),
-            esc_html__('Include', 'hlm-smart-product-filters')
-        );
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][category_mode]" value="exclude" %s> %s</label>',
-            esc_attr($index),
-            checked($category_mode, 'exclude', false),
-            esc_html__('Exclude', 'hlm-smart-product-filters')
-        );
+        foreach (['all' => __('All', 'hlm-smart-product-filters'), 'include' => __('Include', 'hlm-smart-product-filters'), 'exclude' => __('Exclude', 'hlm-smart-product-filters')] as $mode_val => $mode_label) {
+            printf(
+                '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][category_mode]" value="%s" %s> %s</label>',
+                esc_attr($index), esc_attr($mode_val), checked($category_mode, $mode_val, false), esc_html($mode_label)
+            );
+        }
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-category-select" data-mode="' . esc_attr($category_mode) . '">';
-        // Always render both select lists, show/hide based on mode
         echo '<div class="hlm-visibility-include"' . ($category_mode !== 'include' ? ' style="display:none;"' : '') . '>';
         $this->multi_select_field($index, 'visibility][show_on_categories', __('Select categories', 'hlm-smart-product-filters'), $this->categories, $show_on_categories);
         echo '</div>';
@@ -643,44 +660,27 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
-        printf(
-            '<input type="hidden" name="filters[%s][visibility][include_children]" value="0">',
-            esc_attr($index)
-        );
+        printf('<input type="hidden" name="filters[%s][visibility][include_children]" value="0">', esc_attr($index));
         printf(
             '<input type="checkbox" name="filters[%s][visibility][include_children]" value="1" %s> %s',
-            esc_attr($index),
-            checked($include_children, true, false),
-            esc_html__('Include child categories', 'hlm-smart-product-filters')
+            esc_attr($index), checked($include_children, true, false), esc_html__('Include child categories', 'hlm-smart-product-filters')
         );
         echo '</label>';
         echo '</div>';
 
+        // Tag visibility
         echo '<div class="hlm-visibility-group">';
         echo '<label class="hlm-filter-field-label">' . esc_html__('Tag visibility', 'hlm-smart-product-filters') . '</label>';
         echo '<div class="hlm-visibility-modes">';
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][tag_mode]" value="all" %s> %s</label>',
-            esc_attr($index),
-            checked($tag_mode, 'all', false),
-            esc_html__('All', 'hlm-smart-product-filters')
-        );
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][tag_mode]" value="include" %s> %s</label>',
-            esc_attr($index),
-            checked($tag_mode, 'include', false),
-            esc_html__('Include', 'hlm-smart-product-filters')
-        );
-        printf(
-            '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][tag_mode]" value="exclude" %s> %s</label>',
-            esc_attr($index),
-            checked($tag_mode, 'exclude', false),
-            esc_html__('Exclude', 'hlm-smart-product-filters')
-        );
+        foreach (['all' => __('All', 'hlm-smart-product-filters'), 'include' => __('Include', 'hlm-smart-product-filters'), 'exclude' => __('Exclude', 'hlm-smart-product-filters')] as $mode_val => $mode_label) {
+            printf(
+                '<label class="hlm-mode-option"><input type="radio" name="filters[%s][visibility][tag_mode]" value="%s" %s> %s</label>',
+                esc_attr($index), esc_attr($mode_val), checked($tag_mode, $mode_val, false), esc_html($mode_label)
+            );
+        }
         echo '</div>';
 
         echo '<div class="hlm-visibility-select hlm-tag-select" data-mode="' . esc_attr($tag_mode) . '">';
-        // Always render both select lists, show/hide based on mode
         echo '<div class="hlm-visibility-include"' . ($tag_mode !== 'include' ? ' style="display:none;"' : '') . '>';
         $this->multi_select_field($index, 'visibility][show_on_tags', __('Select tags', 'hlm-smart-product-filters'), $this->tags, $show_on_tags);
         echo '</div>';
@@ -690,22 +690,21 @@ final class FiltersBuilderPage
         echo '</div>';
 
         echo '<label class="hlm-filter-checkbox">';
-        printf(
-            '<input type="hidden" name="filters[%s][visibility][include_tag_children]" value="0">',
-            esc_attr($index)
-        );
+        printf('<input type="hidden" name="filters[%s][visibility][include_tag_children]" value="0">', esc_attr($index));
         printf(
             '<input type="checkbox" name="filters[%s][visibility][include_tag_children]" value="1" %s> %s',
-            esc_attr($index),
-            checked($include_tag_children, true, false),
-            esc_html__('Include child tags', 'hlm-smart-product-filters')
+            esc_attr($index), checked($include_tag_children, true, false), esc_html__('Include child tags', 'hlm-smart-product-filters')
         );
         echo '</label>';
         echo '</div>';
+
+        echo '</div>';
         echo '</div>';
 
+        // === Advanced Tab ===
         echo '<div class="hlm-tab-panel" role="tabpanel" data-tab="advanced">';
         echo '<div class="hlm-filter-section">';
+
         $this->text_field($index, 'id', __('ID', 'hlm-smart-product-filters'), $id, [
             'data-help' => __('Internal unique ID (no spaces).', 'hlm-smart-product-filters'),
         ]);
@@ -713,47 +712,41 @@ final class FiltersBuilderPage
             'data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters'),
         ]);
         $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
-            'both' => __('Shortcode + auto', 'hlm-smart-product-filters'),
+            'both'      => __('Shortcode + auto', 'hlm-smart-product-filters'),
             'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
-            'auto' => __('Auto inject only', 'hlm-smart-product-filters'),
+            'auto'      => __('Auto inject only', 'hlm-smart-product-filters'),
         ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
-        echo '</div>';
-        echo '</div>';
 
         echo '</div>';
         echo '</div>';
-        echo '</div>';
+
+        echo '</div>'; // .hlm-tab-panels
+        echo '</div>'; // .hlm-filter-tabs
+        echo '</div>'; // .hlm-filter-card
         echo '</li>';
     }
 
+    /* ------------------------------------------------------------------
+     * Field Helpers
+     * ----------------------------------------------------------------*/
     private function text_field($index, string $name, string $label, string $value, array $attrs = []): void
     {
-        $attr_html = '';
-        $wrapper_class = 'hlm-filter-field';
-        $help = $attrs['data-help'] ?? '';
-        $required = $attrs['required'] ?? false;
+        $help           = $attrs['data-help'] ?? '';
+        $required       = $attrs['required'] ?? false;
         $validation_msg = $attrs['data-validation'] ?? '';
+        $wrapper_class  = 'hlm-filter-field';
+        $placeholder    = $attrs['placeholder'] ?? '';
 
-        if ($help) {
-            unset($attrs['data-help']);
-        }
         if (!empty($attrs['wrapper_class'])) {
             $wrapper_class .= ' ' . $attrs['wrapper_class'];
-            unset($attrs['wrapper_class']);
-        }
-        if (isset($attrs['required'])) {
-            unset($attrs['required']);
-        }
-        if (isset($attrs['data-validation'])) {
-            unset($attrs['data-validation']);
         }
 
-        foreach ($attrs as $attr => $attr_value) {
-            $attr_html .= ' ' . esc_attr($attr) . '="' . esc_attr($attr_value) . '"';
-        }
-
+        $extra_attrs = '';
         if ($required) {
-            $attr_html .= ' data-required="true"';
+            $extra_attrs .= ' data-required="true"';
+        }
+        if ($placeholder) {
+            $extra_attrs .= ' placeholder="' . esc_attr($placeholder) . '"';
         }
 
         printf(
@@ -764,7 +757,7 @@ final class FiltersBuilderPage
             esc_attr($index),
             esc_attr($name),
             esc_attr($value),
-            $attr_html,
+            $extra_attrs,
             $validation_msg ? '<span class="hlm-validation-error">' . esc_html($validation_msg) . '</span>' : ''
         );
     }
@@ -787,36 +780,19 @@ final class FiltersBuilderPage
 
     private function select_field($index, string $name, string $label, string $value, array $options, array $attrs = []): void
     {
-        $help = $attrs['data-help'] ?? '';
-        $required = $attrs['required'] ?? false;
-        $validation_msg = $attrs['data-validation'] ?? '';
-
-        if ($help) {
-            unset($attrs['data-help']);
-        }
-        if (isset($attrs['required'])) {
-            unset($attrs['required']);
-        }
-        if (isset($attrs['data-validation'])) {
-            unset($attrs['data-validation']);
-        }
-
+        $help          = $attrs['data-help'] ?? '';
         $wrapper_class = 'hlm-filter-field';
+
         if (!empty($attrs['wrapper_class'])) {
             $wrapper_class .= ' ' . $attrs['wrapper_class'];
-            unset($attrs['wrapper_class']);
         }
 
-        $attr_html = '';
-        foreach ($attrs as $attr => $attr_value) {
-            $attr_html .= ' ' . esc_attr($attr) . '="' . esc_attr($attr_value) . '"';
+        echo '<label class="' . esc_attr($wrapper_class) . '">';
+        echo esc_html($label);
+        if ($help) {
+            echo '<span class="hlm-help" title="' . esc_attr($help) . '">?</span>';
         }
-
-        if ($required) {
-            $attr_html .= ' data-required="true"';
-        }
-
-        echo '<label class="' . esc_attr($wrapper_class) . '">' . esc_html($label) . ($help ? '<span class="hlm-help" title="' . esc_attr($help) . '">?</span>' : '') . '<select name="filters[' . esc_attr($index) . '][' . esc_attr($name) . ']"' . $attr_html . '>';
+        echo '<select name="filters[' . esc_attr($index) . '][' . esc_attr($name) . ']">';
         foreach ($options as $option_value => $option_label) {
             printf(
                 '<option value="%s" %s>%s</option>',
@@ -825,22 +801,23 @@ final class FiltersBuilderPage
                 esc_html($option_label)
             );
         }
-        echo '</select>' . ($validation_msg ? '<span class="hlm-validation-error">' . esc_html($validation_msg) . '</span>' : '') . '</label>';
+        echo '</select></label>';
     }
 
-    private function multi_select_field($index, string $name, string $label, array $options, array $selected): void
+    private function multi_select_field($index, string $name, string $label, array $options, array $selected_values): void
     {
         $safe_id = 'hlm-multi-' . esc_attr($index) . '-' . preg_replace('/[^a-z0-9_-]+/i', '-', $name);
+
         echo '<label class="hlm-filter-field">' . esc_html($label);
         echo '<select id="' . esc_attr($safe_id) . '" name="filters[' . esc_attr($index) . '][' . esc_attr($name) . '][]" multiple size="6">';
         if (empty($options)) {
             echo '<option value="" disabled>' . esc_html__('No options available', 'hlm-smart-product-filters') . '</option>';
         } else {
-            foreach ($options as $id => $title) {
+            foreach ($options as $opt_id => $title) {
                 printf(
                     '<option value="%s" %s>%s</option>',
-                    esc_attr((string) $id),
-                    selected(in_array((int) $id, $selected, true), true, false),
+                    esc_attr((string) $opt_id),
+                    selected(in_array((int) $opt_id, $selected_values, true), true, false),
                     esc_html($title)
                 );
             }
@@ -853,6 +830,9 @@ final class FiltersBuilderPage
         echo '</label>';
     }
 
+    /* ------------------------------------------------------------------
+     * Data Helpers
+     * ----------------------------------------------------------------*/
     private function swatch_lines(array $map): string
     {
         $lines = [];
@@ -873,7 +853,7 @@ final class FiltersBuilderPage
                         continue;
                     }
                     $this->attributes[] = [
-                        'slug' => $taxonomy->attribute_name,
+                        'slug'  => $taxonomy->attribute_name,
                         'label' => $taxonomy->attribute_label ?: $taxonomy->attribute_name,
                     ];
                 }
@@ -881,13 +861,38 @@ final class FiltersBuilderPage
         }
 
         $this->categories = $this->term_options('product_cat');
-        $this->tags = $this->term_options('product_tag');
+        $this->tags       = $this->term_options('product_tag');
+    }
+
+    private function term_options(string $taxonomy): array
+    {
+        if (!taxonomy_exists($taxonomy)) {
+            return [];
+        }
+
+        $terms = get_terms([
+            'taxonomy'   => $taxonomy,
+            'hide_empty' => false,
+            'number'     => 0,
+        ]);
+
+        if (is_wp_error($terms) || !is_array($terms)) {
+            return [];
+        }
+
+        $options = [];
+        foreach ($terms as $term) {
+            if (isset($term->term_id, $term->name)) {
+                $options[(int) $term->term_id] = $term->name;
+            }
+        }
+        return $options;
     }
 
     private function render_template_selector(): void
     {
         $templates = $this->get_filter_templates();
-        $base_url = wp_nonce_url(admin_url('admin-post.php?action=hlm_load_sample_filters'), 'hlm_load_sample_filters');
+        $base_url  = wp_nonce_url(admin_url('admin-post.php?action=hlm_load_sample_filters'), 'hlm_load_sample_filters');
 
         echo '<div class="hlm-template-selector">';
         echo '<h3>' . esc_html__('Quick Start Templates', 'hlm-smart-product-filters') . '</h3>';
@@ -901,7 +906,6 @@ final class FiltersBuilderPage
             echo '<span class="hlm-template-name">' . esc_html($template['name']) . '</span>';
             echo '<span class="hlm-template-desc">' . esc_html($template['description']) . '</span>';
             echo '<span class="hlm-template-count">' . sprintf(
-                /* translators: %d: number of filters */
                 esc_html(_n('%d filter', '%d filters', count($template['filters']), 'hlm-smart-product-filters')),
                 count($template['filters'])
             ) . '</span>';
@@ -912,1038 +916,36 @@ final class FiltersBuilderPage
         echo '</div>';
     }
 
-    private function term_options(string $taxonomy): array
-    {
-        if (!taxonomy_exists($taxonomy)) {
-            return [];
-        }
-        
-        $terms = get_terms([
-            'taxonomy' => $taxonomy,
-            'hide_empty' => false,
-            'number' => 0, // Get all terms
-        ]);
-        
-        if (is_wp_error($terms)) {
-            return [];
-        }
-        
-        if (!is_array($terms) || empty($terms)) {
-            return [];
-        }
-        
-        $options = [];
-        foreach ($terms as $term) {
-            if (isset($term->term_id) && isset($term->name)) {
-                $options[(int) $term->term_id] = $term->name;
-            }
-        }
-        return $options;
-    }
-
-    private function sample_filters(): array
-    {
-        return $this->get_template('standard');
-    }
-
-    private function get_template(string $template_key): array
-    {
-        $templates = $this->get_filter_templates();
-        return $templates[$template_key]['filters'] ?? [];
-    }
-
+    /* ------------------------------------------------------------------
+     * Templates
+     * ----------------------------------------------------------------*/
     private function get_filter_templates(): array
     {
         return [
-            'standard' => [
-                'name' => __('Standard Shop', 'hlm-smart-product-filters'),
-                'description' => __('Product categories, color swatches, size, and price range - perfect for most stores.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-store',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
             'comprehensive' => [
-                'name' => __('Comprehensive Shop', 'hlm-smart-product-filters'),
-                'description' => __('Categories, tags, color swatches, size, brand, and price range.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-grid-view',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'tags',
-                        'label' => __('Product Tags', 'hlm-smart-product-filters'),
-                        'key' => 'tags',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_tag',
-                        'source_key' => 'product_tag',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'brand',
-                        'label' => __('Brand', 'hlm-smart-product-filters'),
-                        'key' => 'brand',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'brand',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    private function get_filter_templates_backup(): array
-    {
-        return [
-            'standard' => [
-                'name' => __('Standard Shop', 'hlm-smart-product-filters'),
-                'description' => __('Product categories, color swatches, size, and price range - perfect for most stores.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-store',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-            'comprehensive' => [
-                'name' => __('Comprehensive Shop', 'hlm-smart-product-filters'),
-                'description' => __('Categories, tags, color swatches, size, brand, and price range.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-grid-view',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'tags',
-                        'label' => __('Product Tags', 'hlm-smart-product-filters'),
-                        'key' => 'tags',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_tag',
-                        'source_key' => 'product_tag',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'brand',
-                        'label' => __('Brand', 'hlm-smart-product-filters'),
-                        'key' => 'brand',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'brand',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
+                'name'        => __('Comprehensive Shop', 'hlm-smart-product-filters'),
+                'description' => __('Categories, tags, color, size, brand, and price.', 'hlm-smart-product-filters'),
+                'icon'        => 'dashicons-grid-view',
+                'filters'     => [
+                    ['id' => 'category', 'label' => 'Product Categories', 'key' => 'category', 'type' => 'checkbox', 'data_source' => 'product_cat', 'source_key' => 'product_cat', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true, 'include_children' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'tags', 'label' => 'Product Tags', 'key' => 'tags', 'type' => 'checkbox', 'data_source' => 'product_tag', 'source_key' => 'product_tag', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'color', 'label' => 'Color', 'key' => 'color', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'color', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'color', 'show_more_threshold' => 8]],
+                    ['id' => 'size', 'label' => 'Size', 'key' => 'size', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'size', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'text', 'show_more_threshold' => 10]],
+                    ['id' => 'brand', 'label' => 'Brand', 'key' => 'brand', 'type' => 'checkbox', 'data_source' => 'attribute', 'source_key' => 'brand', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'price', 'label' => 'Price Range', 'key' => 'price', 'type' => 'range', 'data_source' => 'meta', 'source_key' => '_price', 'behavior' => ['multi_select' => false], 'visibility' => [], 'ui' => []],
                 ],
             ],
             'pet_focused' => [
-                'name' => __('Pet & Dog Products', 'hlm-smart-product-filters'),
-                'description' => __('Breeds, themes, colors, sizes, and price for pet products.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-heart',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'breeds',
-                        'label' => __('Breeds', 'hlm-smart-product-filters'),
-                        'key' => 'breeds',
-                        'type' => 'checkbox',
-                        'data_source' => 'taxonomy',
-                        'source_key' => 'breeds',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'theme',
-                        'label' => __('Themes', 'hlm-smart-product-filters'),
-                        'key' => 'theme',
-                        'type' => 'checkbox',
-                        'data_source' => 'taxonomy',
-                        'source_key' => 'theme',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-            'brand_focused' => [
-                'name' => __('Brand & Design Focused', 'hlm-smart-product-filters'),
-                'description' => __('Brands, design, style, and color filters for brand-conscious shoppers.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-star-filled',
-                'filters' => [
-                    [
-                        'id' => 'product_brand',
-                        'label' => __('Brands', 'hlm-smart-product-filters'),
-                        'key' => 'product_brand',
-                        'type' => 'checkbox',
-                        'data_source' => 'taxonomy',
-                        'source_key' => 'product_brand',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'brand',
-                        'label' => __('Brand (Attribute)', 'hlm-smart-product-filters'),
-                        'key' => 'brand',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'brand',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'design',
-                        'label' => __('Design', 'hlm-smart-product-filters'),
-                        'key' => 'design',
-                        'type' => 'checkbox',
-                        'data_source' => 'taxonomy',
-                        'source_key' => 'design',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'style',
-                        'label' => __('Style', 'hlm-smart-product-filters'),
-                        'key' => 'style',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'style',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-            'apparel_focused' => [
-                'name' => __('Apparel & Clothing', 'hlm-smart-product-filters'),
-                'description' => __('Size, color, gender, collar color, and neck size for clothing items.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-admin-users',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'size',
-                        'label' => __('Size', 'hlm-smart-product-filters'),
-                        'key' => 'size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'sizes',
-                        'label' => __('Sizes', 'hlm-smart-product-filters'),
-                        'key' => 'sizes',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'sizes',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'color',
-                        'label' => __('Color', 'hlm-smart-product-filters'),
-                        'key' => 'color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'colors',
-                        'label' => __('Colors', 'hlm-smart-product-filters'),
-                        'key' => 'colors',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'colors',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'gender',
-                        'label' => __('Gender', 'hlm-smart-product-filters'),
-                        'key' => 'gender',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'gender',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'collar_color',
-                        'label' => __('Collar Color', 'hlm-smart-product-filters'),
-                        'key' => 'collar-color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'collar-color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'neck_size',
-                        'label' => __('Neck Size', 'hlm-smart-product-filters'),
-                        'key' => 'neck-size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'neck-size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-            'accessories_focused' => [
-                'name' => __('Accessories & Jewelry', 'hlm-smart-product-filters'),
-                'description' => __('Chain size, collar color, style, and design for accessories.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-admin-appearance',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Product Categories', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'chain_size',
-                        'label' => __('Chain Size', 'hlm-smart-product-filters'),
-                        'key' => 'chain-size',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'chain-size',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'text',
-                            'show_more_threshold' => 10,
-                        ],
-                    ],
-                    [
-                        'id' => 'collar_color',
-                        'label' => __('Collar Color', 'hlm-smart-product-filters'),
-                        'key' => 'collar-color',
-                        'type' => 'swatch',
-                        'data_source' => 'attribute',
-                        'source_key' => 'collar-color',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'swatch',
-                            'swatch_type' => 'color',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'style',
-                        'label' => __('Style', 'hlm-smart-product-filters'),
-                        'key' => 'style',
-                        'type' => 'checkbox',
-                        'data_source' => 'attribute',
-                        'source_key' => 'style',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'design',
-                        'label' => __('Design', 'hlm-smart-product-filters'),
-                        'key' => 'design',
-                        'type' => 'checkbox',
-                        'data_source' => 'taxonomy',
-                        'source_key' => 'design',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 5,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price Range', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
-                ],
-            ],
-            'minimal' => [
-                'name' => __('Minimal', 'hlm-smart-product-filters'),
-                'description' => __('Just categories and price - simple and clean.', 'hlm-smart-product-filters'),
-                'icon' => 'dashicons-minus',
-                'filters' => [
-                    [
-                        'id' => 'category',
-                        'label' => __('Category', 'hlm-smart-product-filters'),
-                        'key' => 'category',
-                        'type' => 'checkbox',
-                        'data_source' => 'product_cat',
-                        'source_key' => 'product_cat',
-                        'behavior' => [
-                            'multi_select' => true,
-                            'operator' => 'OR',
-                        ],
-                        'visibility' => [
-                            'hide_empty' => true,
-                            'include_children' => true,
-                        ],
-                        'ui' => [
-                            'style' => 'list',
-                            'show_more_threshold' => 8,
-                        ],
-                    ],
-                    [
-                        'id' => 'price',
-                        'label' => __('Price', 'hlm-smart-product-filters'),
-                        'key' => 'price',
-                        'type' => 'range',
-                        'data_source' => 'meta',
-                        'source_key' => '_price',
-                        'behavior' => [
-                            'multi_select' => false,
-                        ],
-                        'visibility' => [],
-                        'ui' => [
-                            'style' => 'range',
-                        ],
-                    ],
+                'name'        => __('Pet & Dog Products', 'hlm-smart-product-filters'),
+                'description' => __('Breeds, themes, colors, sizes, and price.', 'hlm-smart-product-filters'),
+                'icon'        => 'dashicons-heart',
+                'filters'     => [
+                    ['id' => 'category', 'label' => 'Product Categories', 'key' => 'category', 'type' => 'checkbox', 'data_source' => 'product_cat', 'source_key' => 'product_cat', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true, 'include_children' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'breeds', 'label' => 'Breeds', 'key' => 'breeds', 'type' => 'checkbox', 'data_source' => 'taxonomy', 'source_key' => 'breeds', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'theme', 'label' => 'Themes', 'key' => 'theme', 'type' => 'checkbox', 'data_source' => 'taxonomy', 'source_key' => 'theme', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
+                    ['id' => 'color', 'label' => 'Color', 'key' => 'color', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'color', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'color', 'show_more_threshold' => 8]],
+                    ['id' => 'size', 'label' => 'Size', 'key' => 'size', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'size', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'text', 'show_more_threshold' => 10]],
+                    ['id' => 'price', 'label' => 'Price Range', 'key' => 'price', 'type' => 'range', 'data_source' => 'meta', 'source_key' => '_price', 'behavior' => ['multi_select' => false], 'visibility' => [], 'ui' => []],
                 ],
             ],
         ];

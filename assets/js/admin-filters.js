@@ -1,109 +1,76 @@
 (function ($) {
-  function updateIndices($list) {
-    $list.find('.hlm-filter-row').each(function (index) {
-      $(this)
-        .find('[name^="filters["]')
-        .each(function () {
-          var name = $(this).attr('name');
-          var updated = name.replace(/filters\[[^\]]+\]/, 'filters[' + index + ']');
-          $(this).attr('name', updated);
-        });
-    });
+  'use strict';
+
+  /* ------------------------------------------------------------------
+   * Utilities
+   * ----------------------------------------------------------------*/
+  var _previewTimer = null;
+
+  function debounce(fn, delay) {
+    return function () {
+      var ctx = this, args = arguments;
+      clearTimeout(_previewTimer);
+      _previewTimer = setTimeout(function () { fn.apply(ctx, args); }, delay);
+    };
   }
 
   function normalizeKey(value) {
     return value.toString().trim().toLowerCase().replace(/\s+/g, '_');
   }
 
-  function applyAutoValues($row) {
-    var dataSource = $row.find('[name*="[data_source]"]').val();
-    var sourceKeyInput = $row.find('[name*="[source_key]"]');
-    if (dataSource === 'product_cat') {
-      sourceKeyInput.val('product_cat');
-    }
-    if (dataSource === 'product_tag') {
-      sourceKeyInput.val('product_tag');
-    }
-
-    var labelInput = $row.find('[name*="[label]"]');
-    var keyInput = $row.find('[name*="[key]"]');
-    if (!keyInput.val() && labelInput.val()) {
-      keyInput.val(normalizeKey(labelInput.val()));
-    }
-    var idInput = $row.find('[name*="[id]"]');
-    if (!idInput.val() && keyInput.val()) {
-      idInput.val(normalizeKey(keyInput.val()));
-    }
-  }
-
-  function renderPreview() {
-    var $preview = $('#hlm-filters-preview');
-    if (!$preview.length) {
-      return;
-    }
-    $preview.empty();
-
-    $('#hlm-filters-list .hlm-filter-row').each(function () {
-      var $row = $(this);
-      var label = $row.find('[name*="[label]"]').val() || 'Filter';
-      var type = $row.find('[name*="[type]"]').val() || 'checkbox';
-      var dataSource = $row.find('[name*="[data_source]"]').val() || 'taxonomy';
-      var swatchType = $row.find('[name*="[ui][swatch_type]"]').val() || 'color';
-
-      var card = $('<div class=\"hlm-admin-preview-card\"></div>');
-
-      var header = $('<div class=\"hlm-admin-preview-header\"></div>');
-      header.append('<h4>' + label + '</h4>');
-      header.append('<span class=\"hlm-admin-preview-badge\">' + type + '</span>');
-      card.append(header);
-
-      var items = $('<div class=\"hlm-admin-preview-items\"></div>');
-
-      if (type === 'swatch') {
-        items.addClass('hlm-preview-swatches');
-        if (swatchType === 'color') {
-          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #ef4444;\"></span>');
-          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #3b82f6;\"></span>');
-          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #22c55e;\"></span>');
-          items.append('<span class=\"hlm-admin-swatch\" style=\"background: #f59e0b;\"></span>');
-        } else if (swatchType === 'image') {
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-image\">🖼️</span>');
-        } else {
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">S</span>');
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">M</span>');
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">L</span>');
-          items.append('<span class=\"hlm-admin-swatch hlm-swatch-text\">XL</span>');
-        }
-      } else if (type === 'dropdown') {
-        items.addClass('hlm-preview-dropdown');
-        items.append('<div class=\"hlm-admin-dropdown\"><span>Select ' + dataSource + '</span><span class=\"dashicons dashicons-arrow-down-alt2\"></span></div>');
-      } else if (type === 'range') {
-        items.addClass('hlm-preview-range');
-        items.append('<div class=\"hlm-admin-range\"><span>Min</span><span class=\"hlm-range-separator\">—</span><span>Max</span></div>');
-      } else if (type === 'slider') {
-        items.addClass('hlm-preview-range');
-        items.append('<div class=\"hlm-admin-range\"><span>Min</span><span class=\"hlm-range-slider\"></span><span>Max</span></div>');
-      } else {
-        items.addClass('hlm-preview-checkboxes');
-        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option A</span></label>');
-        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option B</span></label>');
-        items.append('<label class=\"hlm-admin-checkbox\"><input type=\"checkbox\"><span>Option C</span></label>');
-      }
-
-      card.append(items);
-      $preview.append(card);
+  function updateIndices($list) {
+    $list.find('.hlm-filter-row').each(function (index) {
+      $(this).find('[name^="filters["]').each(function () {
+        this.name = this.name.replace(/filters\[[^\]]+\]/, 'filters[' + index + ']');
+      });
     });
   }
 
+  /* ------------------------------------------------------------------
+   * Auto-fill helpers
+   * ----------------------------------------------------------------*/
+  function applyAutoValues($row) {
+    var dataSource   = $row.find('.hlm-data-source').val();
+    var $sourceKey   = $row.find('.hlm-source-key');
+    var $labelInput  = $row.find('[name*="[label]"]');
+    var $keyInput    = $row.find('[name*="[key]"]');
+    var $idInput     = $row.find('[name*="[id]"]');
+
+    if (dataSource === 'product_cat') { $sourceKey.val('product_cat'); }
+    if (dataSource === 'product_tag') { $sourceKey.val('product_tag'); }
+
+    if (!$keyInput.val() && $labelInput.val()) {
+      $keyInput.val(normalizeKey($labelInput.val()));
+    }
+    if (!$idInput.val() && $keyInput.val()) {
+      $idInput.val(normalizeKey($keyInput.val()));
+    }
+  }
+
+  function autoFillFromLabel($row, displayLabel, rawValue) {
+    var $label = $row.find('[name*="[label]"]');
+    var $key   = $row.find('[name*="[key]"]');
+    var $id    = $row.find('[name*="[id]"]');
+
+    if (!$label.val() && displayLabel) {
+      $label.val(displayLabel);
+      $row.find('.hlm-filter-title-text').text(displayLabel);
+    }
+    if (!$key.val() && rawValue) { $key.val(normalizeKey(rawValue)); }
+    if (!$id.val() && rawValue)  { $id.val(normalizeKey(rawValue)); }
+  }
+
+  /* ------------------------------------------------------------------
+   * Type visibility
+   * ----------------------------------------------------------------*/
   function updateTypeVisibility($row) {
-    var type = $row.find('[name*="[type]"]').val() || 'checkbox';
+    var type     = $row.find('[name*="[type]"]').val() || 'checkbox';
     var isSwatch = type === 'swatch';
-    var isRange = type === 'range' || type === 'slider';
+    var isRange  = type === 'range' || type === 'slider';
     var isSlider = type === 'slider';
     var showMore = type === 'checkbox' || type === 'swatch';
-    var isList = type === 'checkbox';
+    var isList   = type === 'checkbox';
+
     $row.find('.hlm-swatch-only').toggleClass('is-hidden', !isSwatch);
     $row.find('.hlm-show-more-only').toggleClass('is-hidden', !showMore);
     $row.find('.hlm-list-only').toggleClass('is-hidden', !isList);
@@ -111,283 +78,210 @@
     $row.find('.hlm-slider-only').toggleClass('is-hidden', !isSlider);
   }
 
+  /* ------------------------------------------------------------------
+   * Source picker <-> hidden fields sync
+   * ----------------------------------------------------------------*/
   function updateSourceFromPicker($row) {
-    var value = $row.find('.hlm-source-picker').val() || '';
-    var $customField = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
-    var $customInput = $row.find('[name*="[custom_source]"]');
+    var value       = $row.find('.hlm-source-picker').val() || '';
+    var $custom     = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
+    var $customIn   = $row.find('[name*="[custom_source]"]');
+    var $meta       = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
+    var $metaIn     = $row.find('[name*="[meta_source]"]');
     var $dataSource = $row.find('.hlm-data-source');
-    var $sourceKey = $row.find('.hlm-source-key');
-    var $labelInput = $row.find('[name*="[label]"]');
-    var $keyInput = $row.find('[name*="[key]"]');
-    var $idInput = $row.find('[name*="[id]"]');
-    var $sourcePicker = $row.find('.hlm-source-picker');
+    var $sourceKey  = $row.find('.hlm-source-key');
+    var $picker     = $row.find('.hlm-source-picker');
+    var displayLabel = $picker.find('option:selected').text().trim();
 
-    var $metaField = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
-    var $metaInput = $row.find('[name*="[meta_source]"]');
+    $custom.addClass('is-hidden');
+    $meta.addClass('is-hidden');
 
-    if (!value) {
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
-      return;
-    }
-
-    // Get the display text from the selected option
-    var displayLabel = $sourcePicker.find('option:selected').text().trim();
+    if (!value) { return; }
 
     if (value === 'product_cat' || value === 'product_tag') {
       $dataSource.val(value);
       $sourceKey.val(value);
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
-
-      // Auto-fill label, key, id if empty
-      if (!$labelInput.val()) {
-        $labelInput.val(displayLabel);
-        $row.find('.hlm-filter-title-text').text(displayLabel);
-      }
-      if (!$keyInput.val()) {
-        $keyInput.val(normalizeKey(value));
-      }
-      if (!$idInput.val()) {
-        $idInput.val(normalizeKey(value));
-      }
-      // Auto-fill advanced fields if they're visible
-      var $advanced = $row.find('.hlm-filter-advanced');
-      if (!$advanced.hasClass('is-hidden')) {
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(value));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(value));
-        }
-      }
+      autoFillFromLabel($row, displayLabel, value);
     } else if (value === 'meta') {
       $dataSource.val('meta');
-      $customField.addClass('is-hidden');
-      $metaField.removeClass('is-hidden');
+      $meta.removeClass('is-hidden');
+      if ($metaIn.val()) { $sourceKey.val($metaIn.val()); }
+      autoFillFromLabel($row, 'Price Range', 'price');
 
-      // Auto-fill from meta input if it has a value
-      if ($metaInput.val()) {
-        $sourceKey.val($metaInput.val());
-      }
-
-      // Auto-fill label, key, id
-      if (!$labelInput.val()) {
-        $labelInput.val('Price Range');
-        $row.find('.hlm-filter-title-text').text('Price Range');
-      }
-      if (!$keyInput.val()) {
-        $keyInput.val('price');
-      }
-      if (!$idInput.val()) {
-        $idInput.val('price');
-      }
-
-      // Auto-set type to range (unless already slider)
       var $typeSelect = $row.find('[name*="[type]"]');
       if ($typeSelect.val() !== 'range' && $typeSelect.val() !== 'slider') {
         $typeSelect.val('range').trigger('change');
       }
-
-      applyAutoValues($row);
-      $dataSource.trigger('change');
-      return;
     } else if (value === 'custom') {
       $dataSource.val('taxonomy');
-      $customField.removeClass('is-hidden');
-      $metaField.addClass('is-hidden');
-      // Keep the picker value as 'custom' - don't let it reset
-      $sourcePicker.val('custom');
-      
-      // Auto-fill from custom input if it has a value
-      if ($customInput.val()) {
-        $sourceKey.val($customInput.val());
-        // Auto-fill label, key, id from custom input
-        var customValue = $customInput.val();
-        if (!$labelInput.val()) {
-          var customLabel = customValue.replace(/^pa_/, '').replace(/_/g, ' ');
-          customLabel = customLabel.charAt(0).toUpperCase() + customLabel.slice(1);
-          $labelInput.val(customLabel);
-          $row.find('.hlm-filter-title-text').text(customLabel);
-        }
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(customValue));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(customValue));
-        }
+      $custom.removeClass('is-hidden');
+      $picker.val('custom');
+      if ($customIn.val()) {
+        $sourceKey.val($customIn.val());
+        var cleanLabel = $customIn.val().replace(/^pa_/, '').replace(/_/g, ' ');
+        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+        autoFillFromLabel($row, cleanLabel, $customIn.val());
       }
-      // Don't trigger change on sourceKey to prevent resetting the picker
-      applyAutoValues($row);
-      $dataSource.trigger('change');
-      return; // Return early to prevent triggering sourceKey change
     } else {
-      // Attribute selected
+      // Attribute
       $dataSource.val('attribute');
       $sourceKey.val(value);
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
-
-      // Auto-fill label, key, id if empty
-      if (!$labelInput.val()) {
-        $labelInput.val(displayLabel);
-        $row.find('.hlm-filter-title-text').text(displayLabel);
-      }
-      if (!$keyInput.val()) {
-        $keyInput.val(normalizeKey(value));
-      }
-      if (!$idInput.val()) {
-        $idInput.val(normalizeKey(value));
-      }
-      // Auto-fill advanced fields (will be visible when user switches to Advanced tab)
-      if (!$keyInput.val()) {
-        $keyInput.val(normalizeKey(value));
-      }
-      if (!$idInput.val()) {
-        $idInput.val(normalizeKey(value));
-      }
+      autoFillFromLabel($row, displayLabel, value);
     }
 
     applyAutoValues($row);
-    $dataSource.trigger('change');
-    $sourceKey.trigger('change');
   }
 
   function updateSourcePickerFromFields($row) {
     var dataSource = $row.find('.hlm-data-source').val();
-    var sourceKey = $row.find('.hlm-source-key').val();
-    var $picker = $row.find('.hlm-source-picker');
-    var $customField = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
-    var $customInput = $row.find('[name*="[custom_source]"]');
-    var currentPickerValue = $picker.val();
-    
-    if (!$picker.length) {
-      return;
-    }
-    var $metaField = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
-    var $metaInput = $row.find('[name*="[meta_source]"]');
+    var sourceKey  = $row.find('.hlm-source-key').val();
+    var $picker    = $row.find('.hlm-source-picker');
+    var $custom    = $row.find('[name*="[custom_source]"]').closest('.hlm-custom-source');
+    var $customIn  = $row.find('[name*="[custom_source]"]');
+    var $meta      = $row.find('[name*="[meta_source]"]').closest('.hlm-meta-source');
+    var $metaIn    = $row.find('[name*="[meta_source]"]');
+    var current    = $picker.val();
+
+    if (!$picker.length) { return; }
+
+    $custom.addClass('is-hidden');
+    $meta.addClass('is-hidden');
 
     if (dataSource === 'product_cat' || dataSource === 'product_tag') {
       $picker.val(dataSource);
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
-      return;
-    }
-    if (dataSource === 'meta') {
+    } else if (dataSource === 'meta') {
       $picker.val('meta');
-      $customField.addClass('is-hidden');
-      $metaField.removeClass('is-hidden');
-      if (sourceKey) {
-        $metaInput.val(sourceKey);
-      }
-      return;
-    }
-    if (dataSource === 'attribute' && sourceKey) {
+      $meta.removeClass('is-hidden');
+      if (sourceKey) { $metaIn.val(sourceKey); }
+    } else if (dataSource === 'attribute' && sourceKey) {
       $picker.val(sourceKey);
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
-      return;
-    }
-    if (dataSource === 'taxonomy') {
-      $metaField.addClass('is-hidden');
-      // If picker is already set to 'custom', keep it that way
-      if (currentPickerValue === 'custom') {
+    } else if (dataSource === 'taxonomy') {
+      if (current === 'custom' || sourceKey) {
         $picker.val('custom');
-        if (sourceKey) {
-          $customInput.val(sourceKey);
-        }
-        $customField.removeClass('is-hidden');
-        return;
+        if (sourceKey) { $customIn.val(sourceKey); }
+        $custom.removeClass('is-hidden');
       }
-      // If sourceKey exists, set to custom
-      if (sourceKey) {
-        $picker.val('custom');
-        $customInput.val(sourceKey);
-        $customField.removeClass('is-hidden');
-        return;
-      }
-    }
-    // Only reset if we're not in the middle of selecting custom or meta
-    if (currentPickerValue !== 'custom' && currentPickerValue !== 'meta') {
-      $picker.val('');
-      $customField.addClass('is-hidden');
-      $metaField.addClass('is-hidden');
     }
   }
 
+  /* ------------------------------------------------------------------
+   * Tab switching (filter row context)
+   * ----------------------------------------------------------------*/
   function switchTab($row, tabName) {
-    var $tabs = $row.find('.hlm-filter-tabs');
-    var $buttons = $tabs.find('.hlm-tab-button');
-    var $panels = $tabs.find('.hlm-tab-panel');
-    
+    var $tabs    = $row.find('> .hlm-filter-card > .hlm-filter-tabs');
+    var $buttons = $tabs.children('.hlm-tab-nav').children('.hlm-tab-button');
+    var $panels  = $tabs.children('.hlm-tab-panels').children('.hlm-tab-panel');
+
     $buttons.removeClass('active').attr('aria-selected', 'false');
-    $panels.removeClass('active').css({
-      'display': 'none',
-      'visibility': 'hidden',
-      'opacity': '0'
-    });
-    
-    var $activeButton = $buttons.filter('[data-tab="' + tabName + '"]');
-    var $activePanel = $panels.filter('[data-tab="' + tabName + '"]');
-    
-    if ($activeButton.length && $activePanel.length) {
-      $activeButton.addClass('active').attr('aria-selected', 'true');
-      $activePanel.addClass('active').css({
-        'display': 'block',
-        'visibility': 'visible',
-        'opacity': '1'
-      });
-    } else {
-      console.warn('Tab not found:', tabName, 'Button:', $activeButton.length, 'Panel:', $activePanel.length, 'Available tabs:', $panels.map(function() { return $(this).data('tab'); }).get());
-    }
+    $panels.removeClass('active');
+
+    $buttons.filter('[data-tab="' + tabName + '"]').addClass('active').attr('aria-selected', 'true');
+    $panels.filter('[data-tab="' + tabName + '"]').addClass('active');
   }
 
+  /* ------------------------------------------------------------------
+   * Expand / Collapse
+   * ----------------------------------------------------------------*/
   function expandAllFilters() {
-    $('#hlm-filters-list .hlm-filter-row').each(function() {
-      var $row = $(this);
-      switchTab($row, 'general');
+    $('#hlm-filters-list .hlm-filter-row').each(function () {
+      $(this).find('.hlm-filter-tabs').show();
+      switchTab($(this), 'general');
     });
   }
 
   function collapseAllFilters() {
-    // Tabs are always visible, so collapse doesn't make sense
-    // But we can switch all to basics tab
-    expandAllFilters();
+    $('#hlm-filters-list .hlm-filter-row').each(function () {
+      $(this).find('.hlm-filter-tabs').hide();
+    });
   }
 
+  /* ------------------------------------------------------------------
+   * Preview
+   * ----------------------------------------------------------------*/
+  var debouncedPreview = debounce(renderPreview, 150);
+
+  function renderPreview() {
+    var $preview = $('#hlm-filters-preview');
+    if (!$preview.length) { return; }
+    $preview.empty();
+
+    $('#hlm-filters-list .hlm-filter-row').each(function () {
+      var $row       = $(this);
+      var label      = $row.find('[name*="[label]"]').val() || 'Filter';
+      var type       = $row.find('[name*="[type]"]').val() || 'checkbox';
+      var swatchType = $row.find('[name*="[ui][swatch_type]"]').val() || 'color';
+
+      var $card   = $('<div class="hlm-admin-preview-card"></div>');
+      var $header = $('<div class="hlm-admin-preview-header"></div>')
+        .append('<h4>' + $('<span>').text(label).html() + '</h4>')
+        .append('<span class="hlm-admin-preview-badge">' + $('<span>').text(type).html() + '</span>');
+      $card.append($header);
+
+      var $items = $('<div class="hlm-admin-preview-items"></div>');
+
+      if (type === 'swatch') {
+        $items.addClass('hlm-preview-swatches');
+        if (swatchType === 'color') {
+          ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b'].forEach(function (c) {
+            $items.append($('<span class="hlm-admin-swatch"></span>').css('background', c));
+          });
+        } else if (swatchType === 'image') {
+          for (var i = 0; i < 3; i++) {
+            $items.append('<span class="hlm-admin-swatch hlm-swatch-image">\uD83D\uDDBC\uFE0F</span>');
+          }
+        } else {
+          ['S', 'M', 'L', 'XL'].forEach(function (s) {
+            $items.append('<span class="hlm-admin-swatch hlm-swatch-text">' + s + '</span>');
+          });
+        }
+      } else if (type === 'dropdown') {
+        $items.addClass('hlm-preview-dropdown');
+        $items.append('<div class="hlm-admin-dropdown"><span>Select option</span><span class="dashicons dashicons-arrow-down-alt2"></span></div>');
+      } else if (type === 'range') {
+        $items.addClass('hlm-preview-range');
+        $items.append('<div class="hlm-admin-range"><span>Min</span><span class="hlm-range-separator">\u2014</span><span>Max</span></div>');
+      } else if (type === 'slider') {
+        $items.addClass('hlm-preview-range');
+        $items.append('<div class="hlm-admin-range"><span>Min</span><span class="hlm-range-slider"></span><span>Max</span></div>');
+      } else {
+        $items.addClass('hlm-preview-checkboxes');
+        ['Option A', 'Option B', 'Option C'].forEach(function (o) {
+          $items.append('<label class="hlm-admin-checkbox"><input type="checkbox" disabled><span>' + o + '</span></label>');
+        });
+      }
+
+      $card.append($items);
+      $preview.append($card);
+    });
+  }
+
+  /* ------------------------------------------------------------------
+   * Swatch Modal
+   * ----------------------------------------------------------------*/
   function parseSwatchMap(text) {
     var map = {};
-    text.split(/\\r?\\n/).forEach(function (line) {
+    text.split(/\r?\n/).forEach(function (line) {
       var parts = line.split(':');
-      if (parts.length < 2) {
-        return;
-      }
-      var id = parts.shift().trim();
+      if (parts.length < 2) { return; }
+      var id    = parts.shift().trim();
       var value = parts.join(':').trim();
-      if (id) {
-        map[id] = value;
-      }
+      if (id) { map[id] = value; }
     });
     return map;
   }
 
   function serializeSwatchMap(map) {
     return Object.keys(map)
-      .filter(function (key) {
-        return map[key] !== '';
-      })
-      .map(function (key) {
-        return key + ': ' + map[key];
-      })
-      .join('\\n');
+      .filter(function (k) { return map[k] !== ''; })
+      .map(function (k) { return k + ': ' + map[k]; })
+      .join('\n');
   }
 
   function openSwatchModal($row) {
-    var dataSource = $row.find('[name*="[data_source]"]').val();
-    var sourceKey = $row.find('[name*="[source_key]"]').val();
+    var dataSource = $row.find('.hlm-data-source').val();
+    var sourceKey  = $row.find('.hlm-source-key').val();
     var swatchType = $row.find('[name*="[ui][swatch_type]"]').val() || 'color';
-    var $textarea = $row.find('textarea[name*="[swatch_map]"]');
-    var map = parseSwatchMap($textarea.val() || '');
+    var $textarea  = $row.find('textarea[name*="[swatch_map]"]');
+    var map        = parseSwatchMap($textarea.val() || '');
 
     var taxonomy = sourceKey;
     if (dataSource === 'attribute' && sourceKey) {
@@ -395,7 +289,7 @@
     }
 
     if (!taxonomy) {
-      alert('Please set a valid source key first.');
+      alert(HLMFiltersAdmin.i18n.noSource);
       return;
     }
 
@@ -405,154 +299,143 @@
       taxonomy: taxonomy
     }).done(function (response) {
       if (!response || !response.success) {
-        alert('Failed to load terms.');
+        alert(HLMFiltersAdmin.i18n.termLoadFail);
         return;
       }
 
-      var $modal = $('<div class=\"hlm-admin-modal\" role=\"dialog\" aria-modal=\"true\"></div>');
-      var $content = $('<div class=\"hlm-admin-modal-content\"></div>');
-      var $header = $('<div class=\"hlm-admin-modal-header\"></div>');
+      var $overlay = $('<div class="hlm-admin-modal" role="dialog" aria-modal="true"></div>');
+      var $content = $('<div class="hlm-admin-modal-content"></div>');
+
+      var $header = $('<div class="hlm-admin-modal-header"></div>');
       $header.append('<h3>Swatch Editor</h3>');
-      var $close = $('<button type=\"button\" class=\"button\">Close</button>');
+      var $close = $('<button type="button" class="button">Close</button>');
       $header.append($close);
 
-      var $list = $('<div class=\"hlm-admin-modal-list\"></div>');
+      var $list = $('<div class="hlm-admin-modal-list"></div>');
+
       response.data.terms.forEach(function (term) {
         var value = map[term.id] || term.meta.color || term.meta.swatch_color || '';
-        var $row = $('<div class=\"hlm-admin-modal-row\"></div>');
+        var $mrow = $('<div class="hlm-admin-modal-row"></div>');
 
-        var $label = $('<div class=\"hlm-admin-modal-row-label\"></div>');
-        var $preview = $('<div class=\"hlm-swatch-preview\"></div>');
+        var $label   = $('<div class="hlm-admin-modal-row-label"></div>');
+        var $preview = $('<div class="hlm-swatch-preview"></div>');
 
         if (swatchType === 'color' && value) {
           $preview.addClass('is-color').css('background-color', value);
         } else if (swatchType === 'image' && value) {
-          $preview.append('<img src=\"' + value + '\" alt=\"\">');
+          $preview.append($('<img alt="">').attr('src', value));
         } else if (swatchType === 'text') {
           $preview.text(value || '?');
         }
 
         $label.append($preview);
-        $label.append('<span>' + term.name + ' <small>(#' + term.id + ')</small></span>');
-        $row.append($label);
+        $label.append('<span>' + $('<span>').text(term.name).html() + ' <small>(#' + term.id + ')</small></span>');
+        $mrow.append($label);
 
-        var inputType = swatchType === 'color' ? 'color' : 'text';
+        var inputType   = swatchType === 'color' ? 'color' : 'text';
         var placeholder = swatchType === 'color' ? '#000000' : (swatchType === 'image' ? 'https://...' : 'Text label');
-        var $input = $('<input type=\"' + inputType + '\" data-term-id=\"' + term.id + '\" value=\"' + value + '\" placeholder=\"' + placeholder + '\">');
+        var $input      = $('<input>')
+          .attr({ type: inputType, placeholder: placeholder, 'data-term-id': term.id })
+          .val(value);
 
         $input.on('input', function () {
-          var newValue = $(this).val();
+          var nv = $(this).val();
           if (swatchType === 'color') {
-            $preview.css('background-color', newValue);
+            $preview.css('background-color', nv);
           } else if (swatchType === 'image') {
             $preview.find('img').remove();
-            if (newValue) {
-              $preview.append('<img src=\"' + newValue + '\" alt=\"\">');
-            }
-          } else if (swatchType === 'text') {
-            $preview.text(newValue || '?');
+            if (nv) { $preview.append($('<img alt="">').attr('src', nv)); }
+          } else {
+            $preview.text(nv || '?');
           }
         });
 
-        $row.append($input);
-        $list.append($row);
+        $mrow.append($input);
+        $list.append($mrow);
       });
 
-      var $actions = $('<div class=\"hlm-admin-modal-actions\"></div>');
-      var $save = $('<button type=\"button\" class=\"button button-primary\">Save</button>');
+      var $actions = $('<div class="hlm-admin-modal-actions"></div>');
+      var $save    = $('<button type="button" class="button button-primary">Save</button>');
       $actions.append($save);
 
-      $content.append($header).append($list).append($actions);
-      $modal.append($content);
-      $('body').append($modal);
+      $content.append($header, $list, $actions);
+      $overlay.append($content);
+      $('body').append($overlay);
 
-      $close.on('click', function () {
-        $modal.remove();
+      $close.on('click', function () { $overlay.remove(); });
+      $overlay.on('click', function (e) {
+        if (e.target === this) { $overlay.remove(); }
       });
 
       $save.on('click', function () {
         var nextMap = {};
         $list.find('input').each(function () {
-          var id = $(this).data('term-id');
-          var val = $(this).val();
-          nextMap[id] = val;
+          nextMap[$(this).data('term-id')] = $(this).val();
         });
         $textarea.val(serializeSwatchMap(nextMap));
-        $modal.remove();
+        $overlay.remove();
       });
     });
   }
 
+  /* ------------------------------------------------------------------
+   * Validation
+   * ----------------------------------------------------------------*/
   function validateField($field) {
-    var $input = $field.find('input[data-required], select[data-required]');
-    if (!$input.length) {
-      return true;
-    }
-    var value = $input.val();
-    var isValid = value && value.trim() !== '';
+    var $input  = $field.find('input[data-required], select[data-required]');
+    if (!$input.length) { return true; }
+    var isValid = !!($input.val() && $input.val().trim());
     $field.toggleClass('is-invalid', !isValid);
-    return isValid;
-  }
-
-  function validateRow($row) {
-    var isValid = true;
-    $row.find('.hlm-filter-field').each(function () {
-      if (!validateField($(this))) {
-        isValid = false;
-      }
-    });
     return isValid;
   }
 
   function validateAllFilters() {
     var isValid = true;
-    $('#hlm-filters-list .hlm-filter-row').each(function () {
-      if (!validateRow($(this))) {
-        isValid = false;
-      }
+    $('#hlm-filters-list .hlm-filter-row .hlm-filter-field').each(function () {
+      if (!validateField($(this))) { isValid = false; }
     });
     return isValid;
   }
 
+  /* ------------------------------------------------------------------
+   * Visibility mode
+   * ----------------------------------------------------------------*/
   function updateVisibilityMode($row, type) {
-    var $container = $row.find(type === 'category' ? '.hlm-category-select' : '.hlm-tag-select');
-    var mode = $row.find('[name*="[' + type + '_mode]"]:checked').val() || 'all';
+    var selector   = type === 'category' ? '.hlm-category-select' : '.hlm-tag-select';
+    var $container = $row.find(selector);
+    var mode       = $row.find('[name*="[' + type + '_mode]"]:checked').val() || 'all';
+
     $container.attr('data-mode', mode);
-    
-    // Show/hide the appropriate select lists
-    var $include = $container.find('.hlm-visibility-include');
-    var $exclude = $container.find('.hlm-visibility-exclude');
-    
-    if (mode === 'include') {
-      $include.show();
-      $exclude.hide();
-    } else if (mode === 'exclude') {
-      $include.hide();
-      $exclude.show();
-    } else {
-      // mode === 'all'
-      $include.hide();
-      $exclude.hide();
-    }
+    $container.find('.hlm-visibility-include').toggle(mode === 'include');
+    $container.find('.hlm-visibility-exclude').toggle(mode === 'exclude');
   }
 
+  /* ------------------------------------------------------------------
+   * Add filter
+   * ----------------------------------------------------------------*/
   function addFilter() {
     var template = $('#hlm-filter-template').html();
-    var index = $('#hlm-filters-list .hlm-filter-row').length;
-    var html = template.replace(/__INDEX__/g, index);
+    var index    = $('#hlm-filters-list .hlm-filter-row').length;
+    var html     = template.replace(/__INDEX__/g, index);
+
     $('#hlm-filters-list').append(html);
     var $row = $('#hlm-filters-list .hlm-filter-row').last();
+
     applyAutoValues($row);
     updateTypeVisibility($row);
     updateSourcePickerFromFields($row);
-    // Initialize visibility modes for new row
     updateVisibilityMode($row, 'category');
     updateVisibilityMode($row, 'tag');
     renderPreview();
   }
 
+  /* ------------------------------------------------------------------
+   * DOM Ready
+   * ----------------------------------------------------------------*/
   $(function () {
     var $list = $('#hlm-filters-list');
+
+    // Sortable
     if ($list.length) {
       $list.sortable({
         handle: '.hlm-filter-handle',
@@ -563,221 +446,172 @@
       });
     }
 
-    $('#hlm-add-filter').on('click', function (event) {
-      event.preventDefault();
+    // Add filter
+    $('#hlm-add-filter').on('click', function (e) {
+      e.preventDefault();
       addFilter();
     });
 
-    $(document).on('click', '.hlm-remove-filter', function (event) {
-      event.preventDefault();
+    // Remove filter (with confirm)
+    $(document).on('click', '.hlm-remove-filter', function (e) {
+      e.preventDefault();
+      var label = $(this).closest('.hlm-filter-row').find('.hlm-filter-title-text').text();
+      if (!confirm(HLMFiltersAdmin.i18n.confirmRemove)) { return; }
       $(this).closest('.hlm-filter-row').remove();
       updateIndices($list);
       renderPreview();
     });
 
-    $(document).on('change', '.hlm-data-source', function () {
-      applyAutoValues($(this).closest('.hlm-filter-row'));
-      updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
-      renderPreview();
-    });
-
-    $(document).on('blur', '[name*=\"[label]\"]', function () {
-      applyAutoValues($(this).closest('.hlm-filter-row'));
-      renderPreview();
-    });
-
-    $(document).on('click', '.hlm-edit-swatch', function (event) {
-      event.preventDefault();
-      openSwatchModal($(this).closest('.hlm-filter-row'));
-    });
-
     // Tab switching
-    $(document).on('click', '.hlm-tab-button', function (event) {
-      event.preventDefault();
-      var $button = $(this);
-      var $row = $button.closest('.hlm-filter-row');
-      var tabName = $button.data('tab');
-      switchTab($row, tabName);
+    $(document).on('click', '.hlm-filter-row .hlm-tab-button', function (e) {
+      e.preventDefault();
+      switchTab($(this).closest('.hlm-filter-row'), $(this).data('tab'));
     });
 
-    $('#hlm-expand-all').on('click', function (event) {
-      event.preventDefault();
-      expandAllFilters();
+    // Header click toggles tabs
+    $(document).on('click', '.hlm-filter-header', function (e) {
+      if ($(e.target).closest('button').length) { return; }
+      var $tabs = $(this).closest('.hlm-filter-card').find('.hlm-filter-tabs');
+      $tabs.toggle();
     });
 
-    $('#hlm-collapse-all').on('click', function (event) {
-      event.preventDefault();
-      collapseAllFilters();
+    // Expand / Collapse
+    $('#hlm-expand-all').on('click', function (e) { e.preventDefault(); expandAllFilters(); });
+    $('#hlm-collapse-all').on('click', function (e) { e.preventDefault(); collapseAllFilters(); });
+
+    // Title live update
+    $(document).on('input', '[name*="[label]"]', function () {
+      $(this).closest('.hlm-filter-row').find('.hlm-filter-title-text').text($(this).val() || 'New Filter');
     });
 
-    $(document).on('input', '[name*=\"[label]\"]', function () {
+    // Label blur -> auto-fill key/id
+    $(document).on('blur', '[name*="[label]"]', function () {
+      applyAutoValues($(this).closest('.hlm-filter-row'));
+      debouncedPreview();
+    });
+
+    // Type change
+    $(document).on('change', '[name*="[type]"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      $row.find('.hlm-filter-title-text').text($(this).val() || 'New Filter');
-    });
-
-    $(document).on('change', '[name*=\"[type]\"]', function () {
-      var $row = $(this).closest('.hlm-filter-row');
-      var type = $(this).val();
-      $row.find('.hlm-badge-type').text(type);
+      $row.find('.hlm-badge-type').text($(this).val());
       updateTypeVisibility($row);
       renderPreview();
     });
 
+    // Source picker change
+    $(document).on('change', '.hlm-source-picker', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      updateSourceFromPicker($row);
+      $row.find('.hlm-badge-source').text($row.find('.hlm-data-source').val());
+      renderPreview();
+    });
+
+    // Data source hidden field change
     $(document).on('change', '.hlm-data-source', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      var source = $(this).val();
-      $row.find('.hlm-badge-source').text(source);
-    });
-
-    $(document).on('change', '.hlm-source-picker', function () {
-      updateSourceFromPicker($(this).closest('.hlm-filter-row'));
-      renderPreview();
-    });
-
-    $(document).on('input', '[name*="[meta_source]"]', function () {
-      var $row = $(this).closest('.hlm-filter-row');
-      var metaValue = $(this).val();
-      $row.find('.hlm-source-key').val(metaValue);
-      $row.find('.hlm-data-source').val('meta');
-
-      // Auto-fill label, key, id from meta key
-      var $labelInput = $row.find('[name*="[label]"]');
-      var $keyInput = $row.find('[name*="[key]"]');
-      var $idInput = $row.find('[name*="[id]"]');
-
-      if (metaValue) {
-        var cleanLabel = metaValue.replace(/^_/, '').replace(/_/g, ' ');
-        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
-
-        if (!$labelInput.val()) {
-          $labelInput.val(cleanLabel + ' Range');
-          $row.find('.hlm-filter-title-text').text(cleanLabel + ' Range');
-        }
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(metaValue.replace(/^_/, '')));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(metaValue.replace(/^_/, '')));
-        }
-      }
-
-      renderPreview();
-    });
-
-    $(document).on('input', '[name*="[custom_source]"]', function () {
-      var $row = $(this).closest('.hlm-filter-row');
-      var customValue = $(this).val();
-      $row.find('.hlm-source-key').val(customValue);
-      $row.find('.hlm-data-source').val('taxonomy');
-
-      // Auto-fill label, key, id from custom source
-      var $labelInput = $row.find('[name*="[label]"]');
-      var $keyInput = $row.find('[name*="[key]"]');
-      var $idInput = $row.find('[name*="[id]"]');
-
-      if (customValue) {
-        var cleanLabel = customValue.replace(/^pa_/, '').replace(/_/g, ' ');
-        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
-
-        if (!$labelInput.val()) {
-          $labelInput.val(cleanLabel);
-          $row.find('.hlm-filter-title-text').text(cleanLabel);
-        }
-        if (!$keyInput.val()) {
-          $keyInput.val(normalizeKey(customValue));
-        }
-        if (!$idInput.val()) {
-          $idInput.val(normalizeKey(customValue));
-        }
-      }
-
+      $row.find('.hlm-badge-source').text($(this).val());
+      applyAutoValues($row);
       updateSourcePickerFromFields($row);
       renderPreview();
     });
 
+    // Meta source input
+    $(document).on('input', '[name*="[meta_source]"]', function () {
+      var $row     = $(this).closest('.hlm-filter-row');
+      var metaVal  = $(this).val();
+
+      $row.find('.hlm-source-key').val(metaVal);
+      $row.find('.hlm-data-source').val('meta');
+
+      if (metaVal) {
+        var cleanLabel = metaVal.replace(/^_/, '').replace(/_/g, ' ');
+        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+        autoFillFromLabel($row, cleanLabel + ' Range', metaVal.replace(/^_/, ''));
+      }
+      debouncedPreview();
+    });
+
+    // Custom source input
+    $(document).on('input', '[name*="[custom_source]"]', function () {
+      var $row     = $(this).closest('.hlm-filter-row');
+      var customVal = $(this).val();
+
+      $row.find('.hlm-source-key').val(customVal);
+      $row.find('.hlm-data-source').val('taxonomy');
+
+      if (customVal) {
+        var cleanLabel = customVal.replace(/^pa_/, '').replace(/_/g, ' ');
+        cleanLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+        autoFillFromLabel($row, cleanLabel, customVal);
+      }
+
+      updateSourcePickerFromFields($row);
+      debouncedPreview();
+    });
+
+    // Source key hidden change
     $(document).on('change', '.hlm-source-key', function () {
       updateSourcePickerFromFields($(this).closest('.hlm-filter-row'));
     });
 
-    $(document).on('click', '.hlm-select-all', function (event) {
-      event.preventDefault();
-      var target = $(this).data('target');
-      var $select = $('#' + target);
-      if ($select.length) {
-        $select.find('option').prop('selected', true);
-        $select.trigger('change');
-      }
+    // Swatch editor
+    $(document).on('click', '.hlm-edit-swatch', function (e) {
+      e.preventDefault();
+      openSwatchModal($(this).closest('.hlm-filter-row'));
     });
 
-    $(document).on('click', '.hlm-clear-all', function (event) {
-      event.preventDefault();
-      var target = $(this).data('target');
-      var $select = $('#' + target);
-      if ($select.length) {
-        $select.find('option').prop('selected', false);
-        $select.trigger('change');
-      }
+    // Swatch type change -> preview update
+    $(document).on('change', '[name*="[ui][swatch_type]"]', function () { renderPreview(); });
+
+    // Select all / Clear all
+    $(document).on('click', '.hlm-select-all', function (e) {
+      e.preventDefault();
+      $('#' + $(this).data('target')).find('option').prop('selected', true);
+    });
+    $(document).on('click', '.hlm-clear-all', function (e) {
+      e.preventDefault();
+      $('#' + $(this).data('target')).find('option').prop('selected', false);
     });
 
+    // Visibility mode radios
     $(document).on('change', '[name*="[category_mode]"]', function () {
       updateVisibilityMode($(this).closest('.hlm-filter-row'), 'category');
     });
-
     $(document).on('change', '[name*="[tag_mode]"]', function () {
       updateVisibilityMode($(this).closest('.hlm-filter-row'), 'tag');
     });
 
-    $(document).on('change', '[name*="[ui][swatch_type]"]', function () {
-      renderPreview();
-    });
-
+    // Validation
     $(document).on('blur', 'input[data-required], select[data-required]', function () {
       validateField($(this).closest('.hlm-filter-field'));
     });
-
     $(document).on('input change', 'input[data-required], select[data-required]', function () {
       var $field = $(this).closest('.hlm-filter-field');
-      if ($field.hasClass('is-invalid')) {
-        validateField($field);
-      }
+      if ($field.hasClass('is-invalid')) { validateField($field); }
     });
 
-    $('form').on('submit', function (event) {
+    // Form submit validation
+    $('form').on('submit', function (e) {
       if (!validateAllFilters()) {
-        event.preventDefault();
-        alert('Please fill in all required fields before saving.');
-        var $firstInvalid = $('.hlm-filter-field.is-invalid').first();
-        if ($firstInvalid.length) {
-          var $row = $firstInvalid.closest('.hlm-filter-row');
-          // Determine which tab the invalid field is in
-          var $panel = $firstInvalid.closest('.hlm-tab-panel');
-          if ($panel.length) {
-            var tabName = $panel.data('tab');
-            switchTab($row, tabName);
-          }
-          $firstInvalid.find('input, select').focus();
+        e.preventDefault();
+        alert(HLMFiltersAdmin.i18n.validationFail);
+        var $first = $('.hlm-filter-field.is-invalid').first();
+        if ($first.length) {
+          var $row   = $first.closest('.hlm-filter-row');
+          var $panel = $first.closest('.hlm-tab-panel');
+          if ($panel.length) { switchTab($row, $panel.data('tab')); }
+          $row.find('.hlm-filter-tabs').show();
+          $first.find('input, select').focus();
         }
         return false;
       }
     });
 
-    $('#hlm-filters-list .hlm-filter-row').each(function () {
-      var $row = $(this);
-      updateTypeVisibility($row);
-      updateSourcePickerFromFields($row);
-      // Initialize visibility modes
-      updateVisibilityMode($row, 'category');
-      updateVisibilityMode($row, 'tag');
-    });
-
-    renderPreview();
-
-    // Import file selection
+    // Import file handling
     $(document).on('change', '.hlm-import-input', function () {
-      var $label = $(this).closest('.hlm-import-label');
+      var $label  = $(this).closest('.hlm-import-label');
       var $submit = $(this).closest('.hlm-import-form').find('.hlm-import-submit');
-      var $text = $label.find('.hlm-import-text');
-
+      var $text   = $label.find('.hlm-import-text');
       if (this.files && this.files.length > 0) {
         $label.addClass('has-file');
         $text.text(this.files[0].name);
@@ -788,10 +622,19 @@
         $submit.prop('disabled', true);
       }
     });
-
-    // Confirm before import
     $(document).on('submit', '.hlm-import-form', function () {
-      return confirm('This will replace your current filters. Continue?');
+      return confirm(HLMFiltersAdmin.i18n.confirmReplace);
     });
+
+    // Initialize existing rows
+    $list.find('.hlm-filter-row').each(function () {
+      var $row = $(this);
+      updateTypeVisibility($row);
+      updateSourcePickerFromFields($row);
+      updateVisibilityMode($row, 'category');
+      updateVisibilityMode($row, 'tag');
+    });
+
+    renderPreview();
   });
 })(jQuery);
