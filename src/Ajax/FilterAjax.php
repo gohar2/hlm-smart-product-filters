@@ -35,9 +35,12 @@ final class FilterAjax
         $config = $this->config->get();
         $request = $this->parse_request();
 
-        $cached = $this->get_cached_response($config, $request);
-        if ($cached !== null) {
-            wp_send_json_success($cached);
+        // Skip cache when debug mode is on to ensure fresh results
+        if (empty($config['global']['debug_mode'])) {
+            $cached = $this->get_cached_response($config, $request);
+            if ($cached !== null) {
+                wp_send_json_success($cached);
+            }
         }
 
         $processor = new FilterProcessor();
@@ -55,6 +58,17 @@ final class FilterAjax
             'result_count' => $renderer->render_result_count($query),
             'total' => (int) $query->found_posts,
         ];
+
+        if (!empty($config['global']['debug_mode'])) {
+            $response['debug'] = [
+                'request' => $request,
+                'query_args' => $args,
+                'found_posts' => (int) $query->found_posts,
+                'post_count' => (int) $query->post_count,
+                'sql' => $query->request,
+                'processor_debug' => FilterProcessor::$last_debug,
+            ];
+        }
 
         $this->set_cached_response($config, $request, $response);
         wp_send_json_success($response);

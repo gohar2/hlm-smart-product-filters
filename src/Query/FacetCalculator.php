@@ -8,7 +8,6 @@ use WP_Query;
 final class FacetCalculator
 {
     private FilterProcessor $processor;
-    private ?bool $lookup_exists = null;
     private CacheStore $cache;
 
     public function __construct(?FilterProcessor $processor = null)
@@ -114,23 +113,21 @@ final class FacetCalculator
                 continue;
             }
 
-            if ($this->is_attribute_filter($filter, $taxonomy) && $this->lookup_table_exists()) {
-                $result[$key] = $this->lookup_counts($taxonomy, $object_ids);
-                if ($enable_cache) {
-                    $this->cache->set($cache_key, $result[$key], $cache_ttl);
-                }
-                continue;
-            }
-
-            // Efficient SQL GROUP BY for taxonomy filters (categories, tags, custom taxonomies)
+            // For attribute filters, use resilient counting that also checks variation postmeta
+            $is_attribute = ($data_source === 'attribute');
             $include_children = !empty($filter['visibility']['include_children']);
             $is_hierarchical = is_taxonomy_hierarchical($taxonomy);
 
-            $counts = $this->taxonomy_counts(
-                $taxonomy,
-                $object_ids,
-                $include_children && $is_hierarchical
-            );
+            if ($is_attribute) {
+                $source_key = (string) ($filter['source_key'] ?? '');
+                $counts = $this->attribute_counts($taxonomy, $source_key, $object_ids);
+            } else {
+                $counts = $this->taxonomy_counts(
+                    $taxonomy,
+                    $object_ids,
+                    $include_children && $is_hierarchical
+                );
+            }
 
             $result[$key] = $counts;
             if ($enable_cache) {
@@ -307,53 +304,95 @@ final class FacetCalculator
         return $source;
     }
 
-    private function is_attribute_filter(array $filter, string $taxonomy): bool
-    {
-        if (($filter['data_source'] ?? '') !== 'attribute') {
-            return false;
-        }
-
-        $source_key = (string) ($filter['source_key'] ?? '');
-        if ($source_key === '') {
-            return false;
-        }
-
-        return strpos($taxonomy, 'pa_') === 0;
-    }
-
-    private function lookup_table_exists(): bool
-    {
-        if ($this->lookup_exists !== null) {
-            return $this->lookup_exists;
-        }
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'wc_product_attributes_lookup';
-        $this->lookup_exists = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
-        return $this->lookup_exists;
-    }
-
-    private function lookup_counts(string $taxonomy, array $object_ids): array
+    /**
+     * Count products per term for attribute taxonomies.
+     * Checks both wp_term_relationships (parent products) and variation postmeta
+     * with both attribute_pa_{key} and attribute_{key} meta keys.
+     * This handles stores where terms aren't assigned to parent products directly
+     * and where custom (non-taxonomy) attributes are used.
+     */
+    private function attribute_counts(string $taxonomy, string $source_key, array $product_ids): array
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'wc_product_attributes_lookup';
-        if (!$object_ids) {
+
+        if (!$product_ids) {
             return [];
         }
 
-        $placeholders = implode(',', array_fill(0, count($object_ids), '%d'));
-        $sql = $wpdb->prepare(
-            "SELECT term_id, COUNT(DISTINCT product_id) as total FROM {$table} WHERE taxonomy = %s AND product_id IN ({$placeholders}) GROUP BY term_id",
-            array_merge([$taxonomy], $object_ids)
+        $product_ids = array_map('intval', $product_ids);
+        $id_placeholders = implode(',', array_fill(0, count($product_ids), '%d'));
+
+        // Get all terms for this taxonomy (needed to map slugs back to term IDs)
+        $all_terms = get_terms([
+            'taxonomy' => $taxonomy,
+            'hide_empty' => false,
+        ]);
+        if (is_wp_error($all_terms) || empty($all_terms)) {
+            return [];
+        }
+
+        $slug_to_term_id = [];
+        foreach ($all_terms as $term) {
+            $slug_to_term_id[strtolower($term->slug)] = (int) $term->term_id;
+        }
+
+        // Method 1: Direct term assignment via wp_term_relationships
+        $sql1 = $wpdb->prepare(
+            "SELECT tt.term_id, tr.object_id AS product_id
+             FROM {$wpdb->term_relationships} tr
+             INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+             WHERE tt.taxonomy = %s
+               AND tr.object_id IN ({$id_placeholders})",
+            array_merge([$taxonomy], $product_ids)
         );
-        $rows = $wpdb->get_results($sql);
-        if (!$rows) {
-            return [];
+        $direct_rows = $wpdb->get_results($sql1);
+
+        // Build term_id => set of product_ids (union of all methods)
+        $term_products = [];
+        foreach ($direct_rows as $row) {
+            $tid = (int) $row->term_id;
+            $pid = (int) $row->product_id;
+            $term_products[$tid][$pid] = true;
         }
 
+        // Method 2: Variation postmeta — check both attribute_pa_{key} and attribute_{key}
+        $meta_keys = ['attribute_' . $taxonomy];
+        $meta_key_custom = 'attribute_' . $source_key;
+        if ($meta_key_custom !== $meta_keys[0]) {
+            $meta_keys[] = $meta_key_custom;
+        }
+
+        foreach ($meta_keys as $meta_key) {
+            $sql2 = $wpdb->prepare(
+                "SELECT pm.meta_value AS term_slug, v.post_parent AS product_id
+                 FROM {$wpdb->posts} v
+                 INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = v.ID
+                 WHERE v.post_type = 'product_variation'
+                   AND v.post_status = 'publish'
+                   AND pm.meta_key = %s
+                   AND pm.meta_value != ''
+                   AND v.post_parent IN ({$id_placeholders})",
+                array_merge([$meta_key], $product_ids)
+            );
+            $variation_rows = $wpdb->get_results($sql2);
+
+            foreach ($variation_rows as $row) {
+                $slug = strtolower($row->term_slug);
+                $pid = (int) $row->product_id;
+                if (isset($slug_to_term_id[$slug])) {
+                    $tid = $slug_to_term_id[$slug];
+                    $term_products[$tid][$pid] = true;
+                }
+            }
+        }
+
+        // Convert to counts
         $counts = [];
-        foreach ($rows as $row) {
-            $counts[(int) $row->term_id] = (int) $row->total;
+        foreach ($term_products as $term_id => $products) {
+            $c = count($products);
+            if ($c > 0) {
+                $counts[(int) $term_id] = $c;
+            }
         }
 
         return $counts;

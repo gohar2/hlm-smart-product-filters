@@ -6,6 +6,9 @@ final class FilterProcessor
 {
     private FilterValidator $validator;
 
+    /** @var array Debug data from the last build_args() call (populated when debug_mode is on). */
+    public static array $last_debug = [];
+
     public function __construct(?FilterValidator $validator = null)
     {
         $this->validator = $validator ?: new FilterValidator();
@@ -13,6 +16,9 @@ final class FilterProcessor
 
     public function build_args(array $config, array $request): array
     {
+        $debug_mode = !empty($config['global']['debug_mode']);
+        $debug = [];
+
         $defaults = [
             'post_type' => 'product',
             'post_status' => 'publish',
@@ -21,18 +27,24 @@ final class FilterProcessor
         $request_filters = $request['filters'] ?? [];
         $normalized = $this->validator->normalize(is_array($request_filters) ? $request_filters : []);
 
+        if ($debug_mode) {
+            $debug['raw_filters'] = $request_filters;
+            $debug['normalized'] = $normalized;
+            $debug['filter_steps'] = [];
+        }
+
         $tax_query = [
             'relation' => 'AND',
         ];
-        $post_in = null;
 
         // Track which taxonomies are actively filtered by the user.
         // When a user selects terms from a filter, their selection OVERRIDES the page
         // context for that taxonomy — e.g. selecting "Electronics" on a "Clothing" category
         // page should show Electronics products, not intersect Clothing AND Electronics.
         $user_filtered_taxonomies = [];
+        // For attribute filters, collect product ID sets (resolved via SQL for resilience)
+        $attribute_product_sets = [];
 
-        $attribute_filters = [];
         foreach (($config['filters'] ?? []) as $filter) {
             if (!is_array($filter)) {
                 continue;
@@ -105,28 +117,60 @@ final class FilterProcessor
                 $taxonomy = '';
             }
 
+            $step = [];
+            if ($debug_mode) {
+                $step = [
+                    'filter_key' => $key,
+                    'data_source' => $data_source,
+                    'source_key' => $source_key,
+                    'resolved_taxonomy' => $taxonomy,
+                    'taxonomy_exists' => $taxonomy !== '' && taxonomy_exists($taxonomy),
+                    'values' => $values,
+                ];
+            }
+
             if ($taxonomy === '' || !taxonomy_exists($taxonomy)) {
+                if ($debug_mode) {
+                    $step['skipped_reason'] = 'taxonomy empty or does not exist';
+                    $debug['filter_steps'][] = $step;
+                }
                 continue;
             }
 
             $term_ids = $this->validator->filter_taxonomy_terms($taxonomy, $values);
+
+            if ($debug_mode) {
+                $step['term_ids'] = $term_ids;
+            }
+
             if (!$term_ids) {
+                if ($debug_mode) {
+                    $step['skipped_reason'] = 'no matching term IDs found for slugs';
+                    $debug['filter_steps'][] = $step;
+                }
                 continue;
             }
 
             // Mark this taxonomy as user-filtered so context doesn't duplicate it
             $user_filtered_taxonomies[$taxonomy] = true;
 
-            $operator = ($filter['behavior']['operator'] ?? 'OR') === 'AND' ? 'AND' : 'IN';
-
-            if ($this->is_attribute_filter($filter, $taxonomy) && $this->lookup_table_exists()) {
-                $attribute_filters[] = [
-                    'taxonomy' => $taxonomy,
-                    'term_ids' => $term_ids,
-                    'operator' => $operator,
-                ];
+            // For attribute filters: use resilient SQL that checks both
+            // wp_term_relationships (parent products) AND variation postmeta.
+            // Checks both attribute_pa_{key} and attribute_{key} meta keys to handle
+            // both global taxonomy attributes and custom product attributes.
+            if ($type === 'attribute') {
+                $attr_ids = $this->find_attribute_products($taxonomy, $source_key, $term_ids, $values);
+                if ($debug_mode) {
+                    $step['method'] = 'attribute_sql';
+                    $step['matched_product_ids'] = $attr_ids;
+                    $debug['filter_steps'][] = $step;
+                }
+                $attribute_product_sets[] = !empty($attr_ids) ? $attr_ids : [0];
                 continue;
             }
+
+            // Non-attribute filters: use standard tax_query
+            $operator = ($filter['behavior']['operator'] ?? 'OR') === 'AND' ? 'AND' : 'IN';
 
             $tax_clause = [
                 'taxonomy' => $taxonomy,
@@ -140,6 +184,12 @@ final class FilterProcessor
                 $tax_clause['include_children'] = true;
             } else {
                 $tax_clause['include_children'] = false;
+            }
+
+            if ($debug_mode) {
+                $step['method'] = 'tax_query';
+                $step['tax_clause'] = $tax_clause;
+                $debug['filter_steps'][] = $step;
             }
 
             $tax_query[] = $tax_clause;
@@ -156,14 +206,23 @@ final class FilterProcessor
             }
         }
 
-        // Apply attribute filters via lookup table
-        if ($attribute_filters && $this->lookup_table_exists()) {
-            $lookup_ids = $this->lookup_products_for_attributes($attribute_filters);
-            $post_in = $lookup_ids;
-        }
-
-        if (is_array($post_in)) {
-            $defaults['post__in'] = $post_in ? $post_in : [0];
+        // For attribute filters, intersect product ID sets and use post__in
+        if (!empty($attribute_product_sets)) {
+            $attr_intersection = $attribute_product_sets[0];
+            for ($i = 1, $count = count($attribute_product_sets); $i < $count; $i++) {
+                $attr_intersection = array_values(array_intersect($attr_intersection, $attribute_product_sets[$i]));
+                if (empty($attr_intersection)) {
+                    $attr_intersection = [0];
+                    break;
+                }
+            }
+            if (!empty($defaults['post__in'])) {
+                $attr_intersection = array_values(array_intersect($defaults['post__in'], $attr_intersection));
+                if (empty($attr_intersection)) {
+                    $attr_intersection = [0];
+                }
+            }
+            $defaults['post__in'] = $attr_intersection;
         }
 
         // Only add tax_query if we have actual filter clauses (not just the relation)
@@ -212,6 +271,11 @@ final class FilterProcessor
 
         if (!empty($request['search'])) {
             $defaults['s'] = sanitize_text_field((string) $request['search']);
+        }
+
+        if ($debug_mode) {
+            $debug['final_args'] = $defaults;
+            self::$last_debug = $debug;
         }
 
         return apply_filters('hlm_filters_query_args', $defaults, $config, $request);
@@ -269,78 +333,87 @@ final class FilterProcessor
         return $int;
     }
 
-    private function is_attribute_filter(array $filter, string $taxonomy): bool
-    {
-        if (($filter['data_source'] ?? '') !== 'attribute') {
-            return false;
-        }
-
-        $source_key = (string) ($filter['source_key'] ?? '');
-        if ($source_key === '') {
-            return false;
-        }
-
-        return strpos($taxonomy, 'pa_') === 0;
-    }
-
-    private function lookup_table_exists(): bool
-    {
-        static $exists = null;
-        if ($exists !== null) {
-            return $exists;
-        }
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'wc_product_attributes_lookup';
-        $exists = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
-        return $exists;
-    }
-
-    private function lookup_products_for_attributes(array $attribute_filters): array
+    /**
+     * Find parent product IDs matching attribute terms.
+     * Checks wp_term_relationships (standard) AND variation postmeta with both
+     * attribute_pa_{key} and attribute_{key} meta keys (handles both global
+     * taxonomy attributes and custom product attributes).
+     */
+    private function find_attribute_products(string $taxonomy, string $source_key, array $term_ids, array $slugs): array
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'wc_product_attributes_lookup';
 
-        $product_sets = [];
-        foreach ($attribute_filters as $filter) {
-            $taxonomy = $filter['taxonomy'];
-            $term_ids = $filter['term_ids'];
-            $operator = $filter['operator'] ?? 'IN';
-            if (!$term_ids) {
-                $product_sets[] = [];
-                continue;
-            }
-
-            $placeholders = implode(',', array_fill(0, count($term_ids), '%d'));
-            if ($operator === 'AND' && count($term_ids) > 1) {
-                $sql = $wpdb->prepare(
-                    "SELECT product_id FROM {$table} WHERE taxonomy = %s AND term_id IN ({$placeholders}) GROUP BY product_id HAVING COUNT(DISTINCT term_id) = %d",
-                    array_merge([$taxonomy], $term_ids, [count($term_ids)])
-                );
-                $product_ids = array_map('intval', $wpdb->get_col($sql));
-            } else {
-                $sql = $wpdb->prepare(
-                    "SELECT DISTINCT product_id FROM {$table} WHERE taxonomy = %s AND term_id IN ({$placeholders})",
-                    array_merge([$taxonomy], $term_ids)
-                );
-                $product_ids = array_map('intval', $wpdb->get_col($sql));
-            }
-            $product_sets[] = $product_ids;
-        }
-
-        if (!$product_sets) {
+        if (!$term_ids && !$slugs) {
             return [];
         }
 
-        $intersection = array_shift($product_sets);
-        foreach ($product_sets as $set) {
-            $intersection = array_values(array_intersect($intersection, $set));
-            if (!$intersection) {
-                break;
+        $union_parts = [];
+        $params = [];
+
+        // Method 1: Parent products with term directly assigned via wp_term_relationships
+        if ($term_ids) {
+            $term_ids_int = array_map('intval', $term_ids);
+            $tid_ph = implode(',', array_fill(0, count($term_ids_int), '%d'));
+            $union_parts[] = "SELECT tr.object_id AS product_id
+                FROM {$wpdb->term_relationships} tr
+                INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                INNER JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+                WHERE tt.taxonomy = %s AND tt.term_id IN ({$tid_ph})
+                  AND p.post_type = 'product' AND p.post_status = 'publish'";
+            $params = array_merge($params, [$taxonomy], $term_ids_int);
+        }
+
+        // Method 2: Variation postmeta — check BOTH attribute_pa_{key} and attribute_{key}
+        // WooCommerce uses attribute_pa_{key} for global taxonomy attributes and
+        // attribute_{key} for custom (non-taxonomy) product attributes.
+        if ($slugs) {
+            $slug_ph = implode(',', array_fill(0, count($slugs), '%s'));
+
+            // Check attribute_pa_{source_key} (taxonomy attribute meta key)
+            $meta_key_taxonomy = 'attribute_' . $taxonomy;
+            $union_parts[] = "SELECT v.post_parent AS product_id
+                FROM {$wpdb->posts} v
+                INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = v.ID
+                INNER JOIN {$wpdb->posts} parent ON v.post_parent = parent.ID
+                WHERE v.post_type = 'product_variation'
+                  AND v.post_status = 'publish'
+                  AND pm.meta_key = %s
+                  AND pm.meta_value IN ({$slug_ph})
+                  AND v.post_parent > 0
+                  AND parent.post_type = 'product'
+                  AND parent.post_status = 'publish'";
+            $params = array_merge($params, [$meta_key_taxonomy], $slugs);
+
+            // Check attribute_{source_key} (custom attribute meta key, without pa_ prefix)
+            $meta_key_custom = 'attribute_' . $source_key;
+            if ($meta_key_custom !== $meta_key_taxonomy) {
+                $union_parts[] = "SELECT v.post_parent AS product_id
+                    FROM {$wpdb->posts} v
+                    INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = v.ID
+                    INNER JOIN {$wpdb->posts} parent ON v.post_parent = parent.ID
+                    WHERE v.post_type = 'product_variation'
+                      AND v.post_status = 'publish'
+                      AND pm.meta_key = %s
+                      AND pm.meta_value IN ({$slug_ph})
+                      AND v.post_parent > 0
+                      AND parent.post_type = 'product'
+                      AND parent.post_status = 'publish'";
+                $params = array_merge($params, [$meta_key_custom], $slugs);
             }
         }
 
-        return $intersection;
+        if (!$union_parts) {
+            return [];
+        }
+
+        $union = implode(' UNION ', $union_parts);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $sql = $wpdb->prepare(
+            "SELECT DISTINCT product_id FROM ({$union}) AS matched",
+            $params
+        );
+
+        return array_map('intval', $wpdb->get_col($sql));
     }
 
     private function context_tax_query($context): array

@@ -70,6 +70,22 @@ final class QueryModifier
         $processor = new FilterProcessor();
         $args = $processor->build_args($config, $request);
 
+        $debug_mode = !empty($config['global']['debug_mode']);
+        if ($debug_mode) {
+            error_log('[HLM Filters Debug] Request filters: ' . wp_json_encode($request['filters']));
+            error_log('[HLM Filters Debug] Processor debug: ' . wp_json_encode(FilterProcessor::$last_debug));
+            error_log('[HLM Filters Debug] Built args: ' . wp_json_encode($args));
+
+            // Output debug as HTML comment in footer
+            add_action('wp_footer', static function () use ($args, $request) {
+                echo "\n<!-- HLM Filters Debug\n";
+                echo 'Request filters: ' . esc_html(wp_json_encode($request['filters'], JSON_PRETTY_PRINT)) . "\n";
+                echo 'Processor debug: ' . esc_html(wp_json_encode(FilterProcessor::$last_debug, JSON_PRETTY_PRINT)) . "\n";
+                echo 'Built WP_Query args: ' . esc_html(wp_json_encode($args, JSON_PRETTY_PRINT)) . "\n";
+                echo "-->\n";
+            });
+        }
+
         // Apply the filter arguments to the query
         foreach ($args as $key => $value) {
             if ($key === 'tax_query' && !empty($value)) {
