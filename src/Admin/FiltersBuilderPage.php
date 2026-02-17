@@ -22,7 +22,6 @@ final class FiltersBuilderPage
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_post_hlm_save_filters', [$this, 'handle_save']);
         add_action('admin_post_hlm_load_sample_filters', [$this, 'handle_load_samples']);
-        add_action('admin_post_hlm_import_filters', [$this, 'handle_import']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
@@ -217,11 +216,11 @@ final class FiltersBuilderPage
 
         check_admin_referer('hlm_load_sample_filters');
 
-        $template  = isset($_GET['template']) ? sanitize_key($_GET['template']) : 'standard';
+        $template  = isset($_GET['template']) ? sanitize_key($_GET['template']) : '';
         $templates = $this->get_filter_templates();
 
         if (!isset($templates[$template])) {
-            $template = 'standard';
+            $template = array_key_first($templates);
         }
 
         $current = $this->config->get();
@@ -237,46 +236,6 @@ final class FiltersBuilderPage
             'samples_loaded' => 'true',
             'template_name'  => rawurlencode($templates[$template]['name']),
         ], admin_url('admin.php')));
-        exit;
-    }
-
-    /* ------------------------------------------------------------------
-     * Import Handler
-     * ----------------------------------------------------------------*/
-    public function handle_import(): void
-    {
-        if (!current_user_can('manage_woocommerce')) {
-            wp_die(__('You do not have permission to manage filters.', 'hlm-smart-product-filters'));
-        }
-
-        check_admin_referer('hlm_import_filters');
-
-        $redirect_args = ['page' => $this->page_slug];
-
-        if (empty($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
-            $redirect_args['import_error'] = 'no_file';
-        } else {
-            $file_content = file_get_contents($_FILES['import_file']['tmp_name']);
-            $import_data  = json_decode($file_content, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($import_data)) {
-                $redirect_args['import_error'] = 'invalid_json';
-            } elseif (empty($import_data['filters']) || !is_array($import_data['filters'])) {
-                $redirect_args['import_error'] = 'no_filters';
-            } else {
-                $current = $this->config->get();
-                $data = [
-                    'global'  => $import_data['global'] ?? $current['global'] ?? $this->config->defaults()['global'],
-                    'filters' => $import_data['filters'],
-                ];
-                $this->config->update($data);
-
-                $redirect_args['imported'] = 'true';
-                $redirect_args['count']    = count($import_data['filters']);
-            }
-        }
-
-        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
 
@@ -364,26 +323,6 @@ final class FiltersBuilderPage
             echo '</p></div>';
         }
 
-        if (isset($_GET['imported']) && $_GET['imported'] === 'true') {
-            $count = isset($_GET['count']) ? absint($_GET['count']) : 0;
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            printf(
-                esc_html(_n('Successfully imported %d filter.', 'Successfully imported %d filters.', $count, 'hlm-smart-product-filters')),
-                $count
-            );
-            echo '</p></div>';
-        }
-
-        if (isset($_GET['import_error'])) {
-            $error_messages = [
-                'no_file'      => __('No file was uploaded. Please select a file to import.', 'hlm-smart-product-filters'),
-                'invalid_json' => __('Invalid JSON file. Please upload a valid export file.', 'hlm-smart-product-filters'),
-                'no_filters'   => __('No filters found in the import file.', 'hlm-smart-product-filters'),
-            ];
-            $error_key     = sanitize_key($_GET['import_error']);
-            $error_message = $error_messages[$error_key] ?? __('An error occurred during import.', 'hlm-smart-product-filters');
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_message) . '</p></div>';
-        }
     }
 
     /* ------------------------------------------------------------------
