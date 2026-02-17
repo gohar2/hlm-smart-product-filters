@@ -60,6 +60,9 @@ final class Plugin
         (new QueryModifier($this->config))->register();
         (new CacheInvalidator())->register();
 
+        // Register Taxnomoy Assigner Page
+        (new Admin\AssignTaxonomy($this->config))->register();
+
         do_action('hlm_filters_boot');
     }
 
