@@ -139,7 +139,14 @@
 .hlm-admin-modal-row input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: all 0.15s ease; }
 .hlm-admin-modal-row input:focus { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15,118,110,0.1); outline: none; }
 .hlm-admin-modal-row input[type="color"] { height: 42px; cursor: pointer; }
-.hlm-admin-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+.hlm-admin-modal-actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+/* Populate button: floats to the left so Save stays right-aligned */
+.hlm-populate-colors { margin-right: auto !important; }
+.hlm-populate-colors.is-loading { opacity: 0.6; cursor: wait; }
+/* Status notice shown after population */
+.hlm-populate-notice { font-size: 12px; font-weight: 500; color: #64748b; white-space: nowrap; }
+.hlm-populate-notice--partial { color: #92400e; }
+.hlm-populate-notice--full    { color: #065f46; }
 
 /* --- Import / Export --- */
 .hlm-import-export { background: #fff; border: 1px solid #dcdcde; border-radius: 10px; padding: 20px; margin-top: 30px; }

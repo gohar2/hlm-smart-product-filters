@@ -4,7 +4,8 @@
   /* ------------------------------------------------------------------
    * Utilities
    * ----------------------------------------------------------------*/
-  var _previewTimer = null;
+  var _previewTimer    = null;
+  var _colorCodesCache = null; // Cached result of hlm_get_color_codes AJAX call
 
   function debounce(fn, delay) {
     return function () {
@@ -255,6 +256,95 @@
   }
 
   /* ------------------------------------------------------------------
+   * Predefined Color Code Population
+   * ----------------------------------------------------------------*/
+
+  /**
+   * Build lookup indexes from the color codes array.
+   * Returns { byId, bySlug, byName } for the three match tiers.
+   */
+  function buildColorIndex(colorData) {
+    var byId   = {};
+    var bySlug = {};
+    var byName = {};
+
+    colorData.forEach(function (entry) {
+      var hex = (entry.hex || '').trim();
+      if (!hex) { return; }
+      if (entry.term_id) { byId[entry.term_id]                        = hex; }
+      if (entry.slug)    { bySlug[entry.slug.toLowerCase()]            = hex; }
+      if (entry.name)    { byName[entry.name.toLowerCase().trim()]     = hex; }
+    });
+
+    return { byId: byId, bySlug: bySlug, byName: byName };
+  }
+
+  /**
+   * Match each color input against the predefined color table.
+   * Match order: term_id → slug → display name (case-insensitive).
+   * Fires .trigger('input') on each updated field so the preview updates.
+   */
+  function populatePredefinedColors($list, $actions) {
+    var $btn = $actions.find('.hlm-populate-colors');
+
+    function applyColors(colorData) {
+      var idx     = buildColorIndex(colorData);
+      var matched = 0;
+      var total   = 0;
+
+      $list.find('input[data-term-id]').each(function () {
+        total++;
+        var $input   = $(this);
+        var termId   = parseInt($input.attr('data-term-id'), 10);
+        var termSlug = ($input.attr('data-term-slug') || '').toLowerCase();
+        var termName = ($input.attr('data-term-name') || '').toLowerCase().trim();
+
+        // Tier 1: exact term_id  →  Tier 2: slug  →  Tier 3: display name
+        var hex = idx.byId[termId] || idx.bySlug[termSlug] || idx.byName[termName] || null;
+        if (hex) {
+          $input.val(hex).trigger('input');
+          matched++;
+        }
+      });
+
+      // Upsert the status notice inside the actions bar
+      var $notice = $actions.find('.hlm-populate-notice');
+      if (!$notice.length) {
+        $notice = $('<span class="hlm-populate-notice"></span>');
+        $actions.prepend($notice);
+      }
+      $notice
+        .text('Matched ' + matched + ' of ' + total + ' terms')
+        .toggleClass('hlm-populate-notice--partial', matched < total)
+        .toggleClass('hlm-populate-notice--full',    matched === total && total > 0);
+    }
+
+    // Use in-request cache so repeated clicks don't re-fetch
+    if (_colorCodesCache) {
+      applyColors(_colorCodesCache);
+      return;
+    }
+
+    $btn.prop('disabled', true).addClass('is-loading').text('Loading\u2026');
+
+    $.post(HLMFiltersAdmin.ajaxUrl, {
+      action: 'hlm_get_color_codes',
+      nonce:  HLMFiltersAdmin.nonce
+    }).done(function (response) {
+      if (response && response.success && Array.isArray(response.data)) {
+        _colorCodesCache = response.data;
+        applyColors(_colorCodesCache);
+      } else {
+        alert('Could not load predefined color codes.');
+      }
+    }).fail(function () {
+      alert('Failed to fetch predefined color codes.');
+    }).always(function () {
+      $btn.prop('disabled', false).removeClass('is-loading').text('Populate Predefined Colors');
+    });
+  }
+
+  /* ------------------------------------------------------------------
    * Swatch Modal
    * ----------------------------------------------------------------*/
   function parseSwatchMap(text) {
@@ -335,7 +425,13 @@
         var inputType   = swatchType === 'color' ? 'color' : 'text';
         var placeholder = swatchType === 'color' ? '#000000' : (swatchType === 'image' ? 'https://...' : 'Text label');
         var $input      = $('<input>')
-          .attr({ type: inputType, placeholder: placeholder, 'data-term-id': term.id })
+          .attr({
+            type: inputType,
+            placeholder: placeholder,
+            'data-term-id':   term.id,
+            'data-term-slug': term.slug || '',
+            'data-term-name': term.name || ''
+          })
           .val(value);
 
         $input.on('input', function () {
@@ -354,8 +450,17 @@
         $list.append($mrow);
       });
 
-      var $actions = $('<div class="hlm-admin-modal-actions"></div>');
-      var $save    = $('<button type="button" class="button button-primary">Save</button>');
+      var $actions  = $('<div class="hlm-admin-modal-actions"></div>');
+      var $save     = $('<button type="button" class="button button-primary">Save</button>');
+
+      if (swatchType === 'color') {
+        var $populate = $('<button type="button" class="button hlm-populate-colors">Populate Predefined Colors</button>');
+        $actions.append($populate);
+        $populate.on('click', function () {
+          populatePredefinedColors($list, $actions);
+        });
+      }
+
       $actions.append($save);
 
       $content.append($header, $list, $actions);
