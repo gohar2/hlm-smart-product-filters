@@ -1,0 +1,696 @@
+{
+  "_meta": {
+    "title": "HLM Smart Product Filters — Hooks Implementation Guide",
+    "version": "1.0.0",
+    "plugin_slug": "hlm-smart-product-filters",
+    "namespace": "HLM\\Filters",
+    "option_key": "hlm_filters_config",
+    "prefix": "hlm_filters_",
+    "last_updated": "2026-02-18",
+    "purpose": "Complete reference for implementing all action and filter hooks across the plugin. Feed this file to an AI assistant (Claude, Cursor, etc.) along with the instruction prompt below."
+  },
+
+  "_ai_prompt": "You are working on a WordPress/WooCommerce plugin called 'HLM Smart Product Filters'. Your task is to implement the hooks defined in this JSON document. The plugin uses PHP 8.1+ with strict typing, PSR-4 autoloading under the `HLM\\Filters` namespace, and follows WordPress coding conventions for hook names. All hook names are prefixed with `hlm_filters_`. When implementing: (1) Rename existing hooks to their new names as specified in 'existing_hooks'. (2) Add all hooks listed in 'new_hooks' at the specified file locations. (3) Use `apply_filters()` for filter hooks and `do_action()` for action hooks. (4) Pass the exact parameters listed. (5) Do NOT change any surrounding logic — only add/rename hook calls. (6) Update any internal references to old hook names.",
+
+  "_directory_structure": {
+    "root": "hlm-smart-product-filters/",
+    "main_file": "hlm-smart-product-filters.php",
+    "src": {
+      "Plugin.php": "Main bootstrap — singleton, activate/deactivate, boot()",
+      "Admin/": {
+        "AdminAjax.php": "AJAX handler for admin builder (term loading)",
+        "AssignTaxonomy.php": "Taxonomy-to-tag bulk assigner tool",
+        "FiltersBuilderPage.php": "Drag-and-drop filter builder, templates, save handler",
+        "ImportExportPage.php": "JSON import/export page with download/upload",
+        "SettingsPage.php": "Global settings page (colors, cache, sort, etc.)"
+      },
+      "Ajax/": {
+        "FilterAjax.php": "Frontend AJAX handler — receives filter request, returns HTML + pagination + counts"
+      },
+      "Cache/": {
+        "CacheInvalidator.php": "Hooks into save_post, term CRUD, config update to clear transients",
+        "CacheStore.php": "Transient-based cache get/set/flush"
+      },
+      "Frontend/": {
+        "Assets.php": "Enqueues frontend CSS and JS",
+        "AutoInjector.php": "Auto-injects filter sidebar via WooCommerce hooks",
+        "QueryModifier.php": "Modifies main WP_Query via pre_get_posts when AJAX is disabled"
+      },
+      "Query/": {
+        "FacetCalculator.php": "Calculates per-term product counts for each filter",
+        "FilterProcessor.php": "Builds WP_Query args from config + request (tax_query, post__in, meta_query, sort)",
+        "FilterValidator.php": "Normalizes and validates filter input, resolves slugs to term IDs",
+        "QueryMerger.php": "Utility for merging WP_Query argument arrays"
+      },
+      "Rendering/": {
+        "ProductRenderer.php": "Renders product grid HTML, pagination HTML, result count HTML",
+        "Shortcode.php": "Main [hlm_filters] shortcode — builds filter item arrays, renders sidebar, enqueues assets",
+        "TemplateLoader.php": "Locates template files (plugin templates/ dir, with theme override support)"
+      },
+      "Support/": {
+        "Autoloader.php": "PSR-4 class autoloader",
+        "Config.php": "Reads/writes/sanitizes the hlm_filters_config option"
+      }
+    },
+    "templates/": {
+      "filters.php": "Frontend filter sidebar HTML template"
+    },
+    "assets/": {
+      "css/": ["filters.css", "admin-filters.css", "admin-settings.css"],
+      "js/": ["filters.js", "admin-filters.js", "admin-settings.js"]
+    }
+  },
+
+  "existing_hooks": {
+    "_instruction": "These hooks already exist in the codebase. Rename each from 'old_name' to 'new_name'. Update both the hook definition AND any internal add_action/add_filter references to the old name.",
+    "hooks": [
+      {
+        "old_name": "hlm_filters_config",
+        "new_name": "hlm_filters_loaded_config",
+        "type": "filter",
+        "file": "src/Support/Config.php",
+        "method": "get()",
+        "line": 14,
+        "current_code": "return apply_filters('hlm_filters_config', $config);",
+        "new_code": "return apply_filters('hlm_filters_loaded_config', $config);",
+        "parameters": [
+          { "name": "$config", "type": "array", "description": "Full sanitized plugin configuration array with 'global' and 'filters' keys" }
+        ],
+        "returns": "array",
+        "description": "Modify the plugin configuration after it is loaded from the database and sanitized. Useful for programmatically overriding settings."
+      },
+      {
+        "old_name": "hlm_filters_render_item",
+        "new_name": "hlm_filters_prepared_filter_item",
+        "type": "filter",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "render() / render_with_request()",
+        "lines": [134, 215],
+        "current_code": "apply_filters('hlm_filters_render_item', $item, $filter)",
+        "new_code": "apply_filters('hlm_filters_prepared_filter_item', $item, $filter)",
+        "parameters": [
+          { "name": "$item", "type": "array", "description": "Filter item data array with keys: label, key, type, terms, counts, active_values, ui, behavior, visibility" },
+          { "name": "$filter", "type": "array", "description": "Raw filter config from the saved configuration" }
+        ],
+        "returns": "array",
+        "description": "Modify individual filter item data before it is passed to the template for rendering. Called once per filter."
+      },
+      {
+        "old_name": "hlm_filters_query_args",
+        "new_name": "hlm_filters_built_query_args",
+        "type": "filter",
+        "file": "src/Query/FilterProcessor.php",
+        "method": "build_args()",
+        "line": 281,
+        "current_code": "return apply_filters('hlm_filters_query_args', $defaults, $config, $request);",
+        "new_code": "return apply_filters('hlm_filters_built_query_args', $defaults, $config, $request);",
+        "parameters": [
+          { "name": "$defaults", "type": "array", "description": "Fully built WP_Query arguments including tax_query, post__in, meta_query, orderby, paged, etc." },
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$request", "type": "array", "description": "Parsed request with keys: filters, context, sort, search, page" }
+        ],
+        "returns": "array",
+        "description": "Modify WP_Query arguments after all filters, sorting, pagination, and context have been applied. Last chance to adjust the query before execution."
+      },
+      {
+        "old_name": "hlm_filters_facet_counts",
+        "new_name": "hlm_filters_calculated_facet_counts",
+        "type": "filter",
+        "file": "src/Query/FacetCalculator.php",
+        "method": "calculate()",
+        "line": 138,
+        "current_code": "return apply_filters('hlm_filters_facet_counts', $result, $config, $request);",
+        "new_code": "return apply_filters('hlm_filters_calculated_facet_counts', $result, $config, $request);",
+        "parameters": [
+          { "name": "$result", "type": "array", "description": "Associative array keyed by filter key. Each value is array of term_id => product_count, or for range filters: { min, max }" },
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$request", "type": "array", "description": "Parsed request" }
+        ],
+        "returns": "array",
+        "description": "Modify all calculated facet counts after computation. Useful for injecting custom counts or removing zero-count terms globally."
+      },
+      {
+        "old_name": "hlm_filters_ajax_permission",
+        "new_name": "hlm_filters_is_ajax_request_allowed",
+        "type": "filter",
+        "file": "src/Ajax/FilterAjax.php",
+        "method": "apply()",
+        "line": 31,
+        "current_code": "if (!apply_filters('hlm_filters_ajax_permission', true)) {",
+        "new_code": "if (!apply_filters('hlm_filters_is_ajax_request_allowed', true)) {",
+        "parameters": [
+          { "name": "$allowed", "type": "bool", "description": "Whether the AJAX filter request is allowed. Default: true" }
+        ],
+        "returns": "bool",
+        "description": "Control whether an AJAX filter request should be processed. Return false to deny with 403. Useful for rate-limiting or role-based restrictions."
+      },
+      {
+        "old_name": "hlm_filters_activated",
+        "new_name": "hlm_filters_plugin_activated",
+        "type": "action",
+        "file": "src/Plugin.php",
+        "method": "activate()",
+        "line": 32,
+        "current_code": "do_action('hlm_filters_activated');",
+        "new_code": "do_action('hlm_filters_plugin_activated');",
+        "parameters": [],
+        "description": "Fired when the plugin is activated. Use for setup tasks like creating database tables or scheduling cron jobs."
+      },
+      {
+        "old_name": "hlm_filters_deactivated",
+        "new_name": "hlm_filters_plugin_deactivated",
+        "type": "action",
+        "file": "src/Plugin.php",
+        "method": "deactivate()",
+        "line": 37,
+        "current_code": "do_action('hlm_filters_deactivated');",
+        "new_code": "do_action('hlm_filters_plugin_deactivated');",
+        "parameters": [],
+        "description": "Fired when the plugin is deactivated. Use for cleanup tasks like removing scheduled cron jobs."
+      },
+      {
+        "old_name": "hlm_filters_boot",
+        "new_name": "hlm_filters_after_plugin_loaded",
+        "type": "action",
+        "file": "src/Plugin.php",
+        "method": "boot()",
+        "line": 66,
+        "current_code": "do_action('hlm_filters_boot');",
+        "new_code": "do_action('hlm_filters_after_plugin_loaded');",
+        "parameters": [],
+        "description": "Fired after the plugin is fully initialized and all components are registered. Safe to interact with the plugin API."
+      },
+      {
+        "old_name": "hlm_filters_before_render",
+        "new_name": "hlm_filters_before_sidebar_render",
+        "type": "action",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "render()",
+        "line": 68,
+        "current_code": "do_action('hlm_filters_before_render', $config, $filters);",
+        "new_code": "do_action('hlm_filters_before_sidebar_render', $config, $filters);",
+        "parameters": [
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$filters", "type": "array", "description": "Array of filter configuration objects" }
+        ],
+        "description": "Fired immediately before the filter sidebar HTML begins rendering. Use to output additional HTML or enqueue last-minute assets."
+      },
+      {
+        "old_name": "hlm_filters_after_render",
+        "new_name": "hlm_filters_after_sidebar_render",
+        "type": "action",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "render()",
+        "line": 241,
+        "current_code": "do_action('hlm_filters_after_render', $config, $filters, $html);",
+        "new_code": "do_action('hlm_filters_after_sidebar_render', $config, $filters, $html);",
+        "parameters": [
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$filters", "type": "array", "description": "Array of filter configuration objects" },
+          { "name": "$html", "type": "string", "description": "The complete rendered filter sidebar HTML" }
+        ],
+        "description": "Fired immediately after the filter sidebar HTML has been rendered. Access to the final HTML output."
+      },
+      {
+        "old_name": "hlm_filters_cache_cleared",
+        "new_name": "hlm_filters_after_cache_cleared",
+        "type": "action",
+        "file": "src/Cache/CacheInvalidator.php",
+        "method": "clear_all()",
+        "line": 20,
+        "current_code": "do_action('hlm_filters_cache_cleared');",
+        "new_code": "do_action('hlm_filters_after_cache_cleared');",
+        "parameters": [],
+        "description": "Fired after all filter caches have been invalidated. Triggered by product saves, term changes, and config updates."
+      }
+    ]
+  },
+
+  "new_hooks": {
+    "_instruction": "Add these new hooks at the specified locations. Insert the hook call at the described position within the method. Do NOT modify surrounding logic.",
+
+    "query_and_filtering": [
+      {
+        "name": "hlm_filters_before_building_query_args",
+        "type": "action",
+        "file": "src/Query/FilterProcessor.php",
+        "method": "build_args()",
+        "insert_position": "After the $normalized variable is set (after line 28), before the $tax_query initialization",
+        "code": "do_action('hlm_filters_before_building_query_args', $config, $request, $normalized);",
+        "parameters": [
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$request", "type": "array", "description": "Raw request data with filters, context, sort, search, page" },
+          { "name": "$normalized", "type": "array", "description": "Normalized filter values keyed by filter key" }
+        ],
+        "description": "Fired before query arguments are built from filters. Use for early-stage logging, cache warming, or request modification side effects."
+      },
+      {
+        "name": "hlm_filters_found_attribute_product_ids",
+        "type": "filter",
+        "file": "src/Query/FilterProcessor.php",
+        "method": "find_attribute_products()",
+        "insert_position": "Before the return statement at the end of find_attribute_products(), filter the result",
+        "code": "return apply_filters('hlm_filters_found_attribute_product_ids', $product_ids, $taxonomy, $source_key, $term_ids, $slugs);",
+        "parameters": [
+          { "name": "$product_ids", "type": "array<int>", "description": "Array of parent product IDs found via SQL (term_relationships + variation postmeta)" },
+          { "name": "$taxonomy", "type": "string", "description": "The resolved taxonomy name, e.g. 'pa_size'" },
+          { "name": "$source_key", "type": "string", "description": "The raw source key from config, e.g. 'size'" },
+          { "name": "$term_ids", "type": "array<int>", "description": "Term IDs being filtered" },
+          { "name": "$slugs", "type": "array<string>", "description": "Term slugs being filtered" }
+        ],
+        "returns": "array<int>",
+        "description": "Modify product IDs found for an attribute filter. Use to add products from custom storage backends or exclude specific products."
+      },
+      {
+        "name": "hlm_filters_registered_sort_options",
+        "type": "filter",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "Where sort dropdown options are built (or in FilterProcessor before apply_sort)",
+        "insert_position": "Filter the sort options array before rendering the sort dropdown in the frontend template",
+        "code": "apply_filters('hlm_filters_registered_sort_options', $sort_options);",
+        "parameters": [
+          { "name": "$sort_options", "type": "array", "description": "Associative array of sort_key => label, e.g. ['menu_order' => 'Default', 'date' => 'Latest', 'price_asc' => 'Price: Low to High']" }
+        ],
+        "returns": "array",
+        "description": "Add, remove, or rename sort options displayed in the sort dropdown. Keys must match cases handled in FilterProcessor::apply_sort()."
+      },
+      {
+        "name": "hlm_filters_resolved_sort_args",
+        "type": "filter",
+        "file": "src/Query/FilterProcessor.php",
+        "method": "apply_sort()",
+        "insert_position": "At the end of apply_sort() method, before the method returns, filter the sort-related args",
+        "code": "$args = apply_filters('hlm_filters_resolved_sort_args', ['orderby' => $args['orderby'], 'order' => $args['order'], 'meta_key' => $args['meta_key'] ?? ''], $sort); // Then merge back into $args",
+        "parameters": [
+          { "name": "$sort_args", "type": "array", "description": "Array with keys: orderby, order, meta_key" },
+          { "name": "$sort", "type": "string", "description": "The sort key string, e.g. 'price_asc', 'date', 'popularity'" }
+        ],
+        "returns": "array",
+        "description": "Modify WP_Query sort arguments after they are resolved from the sort key. Use for custom sort implementations."
+      }
+    ],
+
+    "ajax_response": [
+      {
+        "name": "hlm_filters_prepared_ajax_response",
+        "type": "filter",
+        "file": "src/Ajax/FilterAjax.php",
+        "method": "apply()",
+        "insert_position": "After the $response array is built (after the debug block), before wp_send_json_success()",
+        "code": "$response = apply_filters('hlm_filters_prepared_ajax_response', $response, $request, $query);",
+        "parameters": [
+          { "name": "$response", "type": "array", "description": "Response array with keys: html, pagination, filters, result_count, total, and optionally debug" },
+          { "name": "$request", "type": "array", "description": "Parsed request data" },
+          { "name": "$query", "type": "WP_Query", "description": "The executed WP_Query object" }
+        ],
+        "returns": "array",
+        "description": "Modify the complete AJAX response before it is sent to the browser. Use to inject custom data, modify HTML, or add analytics payloads."
+      },
+      {
+        "name": "hlm_filters_parsed_ajax_request",
+        "type": "filter",
+        "file": "src/Ajax/FilterAjax.php",
+        "method": "apply()",
+        "insert_position": "After $request = $this->parse_request(), before cache check",
+        "code": "$request = apply_filters('hlm_filters_parsed_ajax_request', $request);",
+        "parameters": [
+          { "name": "$request", "type": "array", "description": "Parsed request with keys: filters, search, sort, page, context, render_context" }
+        ],
+        "returns": "array",
+        "description": "Modify the parsed AJAX request data before it is used to build the query. Use for request normalization or injecting default filters."
+      }
+    ],
+
+    "rendering_and_templates": [
+      {
+        "name": "hlm_filters_is_filter_visible",
+        "type": "filter",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "should_render_filter() or equivalent visibility check",
+        "insert_position": "Where filter visibility is decided, before a filter is skipped or included",
+        "code": "$should_render = apply_filters('hlm_filters_is_filter_visible', $should_render, $filter, $context);",
+        "parameters": [
+          { "name": "$should_render", "type": "bool", "description": "Whether the filter should be rendered based on built-in visibility rules" },
+          { "name": "$filter", "type": "array", "description": "The filter configuration array" },
+          { "name": "$context", "type": "array", "description": "Current page context with category_id, tag_id, custom_taxonomy, custom_term_id" }
+        ],
+        "returns": "bool",
+        "description": "Override whether a specific filter is visible on the current page. Runs after built-in category/tag visibility rules."
+      },
+      {
+        "name": "hlm_filters_resolved_filter_terms",
+        "type": "filter",
+        "file": "src/Rendering/Shortcode.php",
+        "method": "Where get_terms() is called to populate filter options",
+        "insert_position": "After terms are fetched for a filter, before they are used to build the item array",
+        "code": "$terms = apply_filters('hlm_filters_resolved_filter_terms', $terms, $filter, $taxonomy);",
+        "parameters": [
+          { "name": "$terms", "type": "array<WP_Term>", "description": "Array of WP_Term objects for the filter" },
+          { "name": "$filter", "type": "array", "description": "The filter configuration array" },
+          { "name": "$taxonomy", "type": "string", "description": "The resolved taxonomy name" }
+        ],
+        "returns": "array<WP_Term>",
+        "description": "Modify the terms displayed for a filter. Use to reorder, exclude specific terms, or inject virtual terms."
+      },
+      {
+        "name": "hlm_filters_rendered_products_html",
+        "type": "filter",
+        "file": "src/Rendering/ProductRenderer.php",
+        "method": "render_products()",
+        "insert_position": "Before returning the products HTML string",
+        "code": "return apply_filters('hlm_filters_rendered_products_html', $html, $query, $config);",
+        "parameters": [
+          { "name": "$html", "type": "string", "description": "The rendered products grid HTML" },
+          { "name": "$query", "type": "WP_Query", "description": "The WP_Query that produced the products" },
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" }
+        ],
+        "returns": "string",
+        "description": "Modify the product grid HTML output. Use for wrapping in custom containers, injecting ads between products, etc."
+      },
+      {
+        "name": "hlm_filters_rendered_pagination_html",
+        "type": "filter",
+        "file": "src/Rendering/ProductRenderer.php",
+        "method": "render_pagination()",
+        "insert_position": "Before returning the pagination HTML string",
+        "code": "return apply_filters('hlm_filters_rendered_pagination_html', $html, $query, $request);",
+        "parameters": [
+          { "name": "$html", "type": "string", "description": "The rendered pagination HTML" },
+          { "name": "$query", "type": "WP_Query", "description": "The WP_Query with pagination info" },
+          { "name": "$request", "type": "array", "description": "Parsed request data" }
+        ],
+        "returns": "string",
+        "description": "Modify the pagination HTML output. Use for custom pagination styles, infinite scroll triggers, or load-more buttons."
+      },
+      {
+        "name": "hlm_filters_rendered_result_count_html",
+        "type": "filter",
+        "file": "src/Rendering/ProductRenderer.php",
+        "method": "render_result_count()",
+        "insert_position": "Before returning the result count HTML string",
+        "code": "return apply_filters('hlm_filters_rendered_result_count_html', $html, $query);",
+        "parameters": [
+          { "name": "$html", "type": "string", "description": "The 'Showing X of Y products' HTML string" },
+          { "name": "$query", "type": "WP_Query", "description": "The WP_Query with found_posts count" }
+        ],
+        "returns": "string",
+        "description": "Modify the result count display HTML."
+      },
+      {
+        "name": "hlm_filters_auto_inject_hook_name",
+        "type": "filter",
+        "file": "src/Frontend/AutoInjector.php",
+        "method": "maybe_hook()",
+        "insert_position": "Where the WooCommerce hook name is determined for auto-injection",
+        "code": "$hook_name = apply_filters('hlm_filters_auto_inject_hook_name', $hook_name, $config);",
+        "parameters": [
+          { "name": "$hook_name", "type": "string", "description": "The WooCommerce action hook name, e.g. 'woocommerce_before_shop_loop'" },
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" }
+        ],
+        "returns": "string",
+        "description": "Override which WooCommerce hook is used for auto-injecting the filter sidebar. Use for themes with non-standard shop templates."
+      },
+      {
+        "name": "hlm_filters_resolved_template_path",
+        "type": "filter",
+        "file": "src/Rendering/TemplateLoader.php",
+        "method": "locate() or equivalent",
+        "insert_position": "After the template path is resolved, before it is returned",
+        "code": "return apply_filters('hlm_filters_resolved_template_path', $path, $template_name);",
+        "parameters": [
+          { "name": "$path", "type": "string", "description": "Absolute path to the resolved template file" },
+          { "name": "$template_name", "type": "string", "description": "Template file name, e.g. 'filters.php'" }
+        ],
+        "returns": "string",
+        "description": "Override the template file path. Use for complete template replacement from a theme or add-on plugin."
+      }
+    ],
+
+    "facet_calculation": [
+      {
+        "name": "hlm_filters_calculated_single_facet_count",
+        "type": "filter",
+        "file": "src/Query/FacetCalculator.php",
+        "method": "calculate()",
+        "insert_position": "After counts are computed for a single filter (after taxonomy_counts or attribute_counts), before storing in $result",
+        "code": "$counts = apply_filters('hlm_filters_calculated_single_facet_count', $counts, $key, $filter, $object_ids);",
+        "parameters": [
+          { "name": "$counts", "type": "array", "description": "Associative array of term_id => product_count for this filter" },
+          { "name": "$key", "type": "string", "description": "The filter key, e.g. 'size', 'color', 'category'" },
+          { "name": "$filter", "type": "array", "description": "The filter configuration array" },
+          { "name": "$object_ids", "type": "array<int>", "description": "Product IDs in the current (excluding this filter) result set" }
+        ],
+        "returns": "array",
+        "description": "Modify term counts for a single filter. More granular than hlm_filters_calculated_facet_counts. Use for custom count logic per filter."
+      },
+      {
+        "name": "hlm_filters_calculated_range_bounds",
+        "type": "filter",
+        "file": "src/Query/FacetCalculator.php",
+        "method": "calculate() — inside the range/slider handler",
+        "insert_position": "After range_bounds() returns, before storing in $result",
+        "code": "$bounds = apply_filters('hlm_filters_calculated_range_bounds', $bounds, $key, $meta_key, $range_ids);",
+        "parameters": [
+          { "name": "$bounds", "type": "array", "description": "Array with 'min' and 'max' float values" },
+          { "name": "$key", "type": "string", "description": "The filter key, e.g. 'price_ranges'" },
+          { "name": "$meta_key", "type": "string", "description": "The meta key, e.g. '_price'" },
+          { "name": "$range_ids", "type": "array<int>", "description": "Product IDs in the base result set" }
+        ],
+        "returns": "array",
+        "description": "Modify the min/max bounds for range/slider filters. Use for custom rounding, currency conversion, or clamping."
+      }
+    ],
+
+    "validation": [
+      {
+        "name": "hlm_filters_normalized_filter_input",
+        "type": "filter",
+        "file": "src/Query/FilterValidator.php",
+        "method": "normalize()",
+        "insert_position": "At the end of normalize(), before returning the normalized array",
+        "code": "return apply_filters('hlm_filters_normalized_filter_input', $normalized, $raw_input);",
+        "parameters": [
+          { "name": "$normalized", "type": "array", "description": "Normalized filter values keyed by filter key. Values are arrays of slugs or associative min/max for ranges." },
+          { "name": "$raw_input", "type": "array", "description": "The raw filter input from the request" }
+        ],
+        "returns": "array",
+        "description": "Modify normalized filter input before it is used to build query arguments. Use for injecting forced filters or transforming values."
+      }
+    ],
+
+    "cache": [
+      {
+        "name": "hlm_filters_generated_cache_key",
+        "type": "filter",
+        "file": "src/Query/FacetCalculator.php",
+        "method": "cache_key()",
+        "insert_position": "Before returning the generated cache key string",
+        "code": "return apply_filters('hlm_filters_generated_cache_key', $cache_key, $filter_key, $config, $request);",
+        "parameters": [
+          { "name": "$cache_key", "type": "string", "description": "The generated MD5 cache key string" },
+          { "name": "$filter_key", "type": "string", "description": "The filter key this cache entry is for" },
+          { "name": "$config", "type": "array", "description": "Full plugin configuration" },
+          { "name": "$request", "type": "array", "description": "Parsed request data" }
+        ],
+        "returns": "string",
+        "description": "Modify the cache key used for storing facet counts. Use for multi-language or multi-currency cache segmentation."
+      },
+      {
+        "name": "hlm_filters_resolved_cache_ttl",
+        "type": "filter",
+        "file": "src/Cache/CacheStore.php",
+        "method": "set()",
+        "insert_position": "Before the transient is stored, filter the TTL value",
+        "code": "$ttl = apply_filters('hlm_filters_resolved_cache_ttl', $ttl, $key);",
+        "parameters": [
+          { "name": "$ttl", "type": "int", "description": "Cache time-to-live in seconds" },
+          { "name": "$key", "type": "string", "description": "The cache key being stored" }
+        ],
+        "returns": "int",
+        "description": "Override cache TTL for specific cache entries. Use for dynamic TTL based on traffic patterns or content freshness."
+      }
+    ],
+
+    "admin": [
+      {
+        "name": "hlm_filters_before_saving_config",
+        "type": "action",
+        "file": "src/Admin/FiltersBuilderPage.php",
+        "method": "handle_save()",
+        "insert_position": "After filters are sanitized, before $this->config->update() is called",
+        "code": "do_action('hlm_filters_before_saving_config', $data, $current);",
+        "parameters": [
+          { "name": "$data", "type": "array", "description": "The new configuration data about to be saved (global + filters)" },
+          { "name": "$current", "type": "array", "description": "The current configuration before saving" }
+        ],
+        "description": "Fired before the filter configuration is saved to the database. Use for validation logging, backup creation, or notification triggers."
+      },
+      {
+        "name": "hlm_filters_after_saving_config",
+        "type": "action",
+        "file": "src/Admin/FiltersBuilderPage.php",
+        "method": "handle_save()",
+        "insert_position": "After $this->config->update() is called, before the redirect",
+        "code": "do_action('hlm_filters_after_saving_config', $data);",
+        "parameters": [
+          { "name": "$data", "type": "array", "description": "The saved configuration data" }
+        ],
+        "description": "Fired after the filter configuration has been saved. Use for cache warming, webhook notifications, or sync operations."
+      },
+      {
+        "name": "hlm_filters_before_importing_config",
+        "type": "action",
+        "file": "src/Admin/ImportExportPage.php",
+        "method": "handle_import()",
+        "insert_position": "After $decoded is validated as a valid array, before sanitize and update_option",
+        "code": "do_action('hlm_filters_before_importing_config', $decoded);",
+        "parameters": [
+          { "name": "$decoded", "type": "array", "description": "The decoded JSON import data before sanitization" }
+        ],
+        "description": "Fired before imported configuration replaces the current config. Use for backup creation or import validation."
+      },
+      {
+        "name": "hlm_filters_after_importing_config",
+        "type": "action",
+        "file": "src/Admin/ImportExportPage.php",
+        "method": "handle_import()",
+        "insert_position": "After update_option() succeeds, before the redirect",
+        "code": "do_action('hlm_filters_after_importing_config', $sanitized, $filter_count);",
+        "parameters": [
+          { "name": "$sanitized", "type": "array", "description": "The sanitized imported configuration that was saved" },
+          { "name": "$filter_count", "type": "int", "description": "Number of filters in the imported configuration" }
+        ],
+        "description": "Fired after configuration has been successfully imported. Use for audit logging or post-import processing."
+      },
+      {
+        "name": "hlm_filters_sanitized_single_filter",
+        "type": "filter",
+        "file": "src/Admin/FiltersBuilderPage.php",
+        "method": "sanitize_filter()",
+        "insert_position": "At the end of sanitize_filter(), before returning $clean",
+        "code": "return apply_filters('hlm_filters_sanitized_single_filter', $clean, $filter);",
+        "parameters": [
+          { "name": "$clean", "type": "array", "description": "The sanitized filter configuration array" },
+          { "name": "$filter", "type": "array", "description": "The raw unsanitized filter input from the form" }
+        ],
+        "returns": "array",
+        "description": "Modify a single filter's sanitized data before saving. Use to add custom fields to filters from add-on plugins."
+      },
+      {
+        "name": "hlm_filters_registered_templates",
+        "type": "filter",
+        "file": "src/Admin/FiltersBuilderPage.php",
+        "method": "get_filter_templates()",
+        "insert_position": "Filter the return value of get_filter_templates()",
+        "code": "return apply_filters('hlm_filters_registered_templates', $templates);",
+        "parameters": [
+          { "name": "$templates", "type": "array", "description": "Associative array of template_key => { name, description, icon, filters[] }" }
+        ],
+        "returns": "array",
+        "description": "Add or modify quick-start filter templates in the builder. Add-on plugins can register industry-specific templates."
+      },
+      {
+        "name": "hlm_filters_prepared_sample_config",
+        "type": "filter",
+        "file": "src/Admin/ImportExportPage.php",
+        "method": "get_sample_config()",
+        "insert_position": "Filter the return value of get_sample_config()",
+        "code": "return apply_filters('hlm_filters_prepared_sample_config', $sample);",
+        "parameters": [
+          { "name": "$sample", "type": "array", "description": "Sample configuration array with schema_version, global, and filters" }
+        ],
+        "returns": "array",
+        "description": "Modify the sample configuration file available for download on the Import/Export page."
+      }
+    ],
+
+    "assets": [
+      {
+        "name": "hlm_filters_after_enqueued_styles",
+        "type": "action",
+        "file": "src/Frontend/Assets.php",
+        "method": "enqueue() or equivalent style enqueue location",
+        "insert_position": "After wp_enqueue_style() calls for the plugin's CSS",
+        "code": "do_action('hlm_filters_after_enqueued_styles');",
+        "parameters": [],
+        "description": "Fired after the plugin's frontend CSS is enqueued. Register additional stylesheets or inline CSS for customizations."
+      },
+      {
+        "name": "hlm_filters_after_enqueued_scripts",
+        "type": "action",
+        "file": "src/Frontend/Assets.php",
+        "method": "enqueue() or equivalent script enqueue location",
+        "insert_position": "After wp_enqueue_script() and wp_localize_script() calls for the plugin's JS",
+        "code": "do_action('hlm_filters_after_enqueued_scripts');",
+        "parameters": [],
+        "description": "Fired after the plugin's frontend JS is enqueued and localized. Register additional scripts or pass extra data via wp_localize_script."
+      }
+    ]
+  },
+
+  "summary": {
+    "total_existing_hooks_to_rename": 11,
+    "total_new_hooks_to_add": 27,
+    "grand_total": 38,
+    "breakdown": {
+      "filters": { "existing_renamed": 5, "new": 14, "total": 19 },
+      "actions": { "existing_renamed": 6, "new": 13, "total": 19 }
+    },
+    "categories": {
+      "query_and_filtering": 4,
+      "ajax_response": 2,
+      "rendering_and_templates": 7,
+      "facet_calculation": 2,
+      "validation": 1,
+      "cache": 2,
+      "admin": 7,
+      "assets": 2
+    }
+  },
+
+  "_usage_examples": {
+    "description": "Example code snippets showing how third-party developers would use these hooks.",
+    "examples": [
+      {
+        "hook": "hlm_filters_built_query_args",
+        "title": "Exclude out-of-stock products",
+        "code": "add_filter('hlm_filters_built_query_args', function(array $args): array {\n    $args['meta_query'][] = [\n        'key' => '_stock_status',\n        'value' => 'instock',\n    ];\n    return $args;\n});"
+      },
+      {
+        "hook": "hlm_filters_found_attribute_product_ids",
+        "title": "Add products from custom attribute storage",
+        "code": "add_filter('hlm_filters_found_attribute_product_ids', function(array $ids, string $taxonomy, string $source_key, array $term_ids): array {\n    if ($source_key === 'material') {\n        $custom_ids = my_custom_lookup($term_ids);\n        return array_unique(array_merge($ids, $custom_ids));\n    }\n    return $ids;\n}, 10, 4);"
+      },
+      {
+        "hook": "hlm_filters_prepared_ajax_response",
+        "title": "Add analytics data to AJAX response",
+        "code": "add_filter('hlm_filters_prepared_ajax_response', function(array $response, array $request): array {\n    $response['analytics'] = [\n        'filter_count' => count($request['filters'] ?? []),\n        'timestamp' => time(),\n    ];\n    return $response;\n}, 10, 2);"
+      },
+      {
+        "hook": "hlm_filters_is_filter_visible",
+        "title": "Hide filters for non-logged-in users",
+        "code": "add_filter('hlm_filters_is_filter_visible', function(bool $visible, array $filter): bool {\n    if ($filter['key'] === 'wholesale_price' && !is_user_logged_in()) {\n        return false;\n    }\n    return $visible;\n}, 10, 2);"
+      },
+      {
+        "hook": "hlm_filters_registered_templates",
+        "title": "Add a custom template for fashion stores",
+        "code": "add_filter('hlm_filters_registered_templates', function(array $templates): array {\n    $templates['fashion'] = [\n        'name' => 'Fashion Store',\n        'description' => 'Style, color, size, brand, and price filters.',\n        'icon' => 'dashicons-admin-appearance',\n        'filters' => [ /* ... filter configs ... */ ],\n    ];\n    return $templates;\n});"
+      },
+      {
+        "hook": "hlm_filters_resolved_template_path",
+        "title": "Use a custom template from theme",
+        "code": "add_filter('hlm_filters_resolved_template_path', function(string $path, string $name): string {\n    $theme_path = get_stylesheet_directory() . '/hlm-filters/' . $name;\n    return file_exists($theme_path) ? $theme_path : $path;\n}, 10, 2);"
+      },
+      {
+        "hook": "hlm_filters_generated_cache_key",
+        "title": "Segment cache by WPML language",
+        "code": "add_filter('hlm_filters_generated_cache_key', function(string $key): string {\n    if (defined('ICL_LANGUAGE_CODE')) {\n        return $key . '_' . ICL_LANGUAGE_CODE;\n    }\n    return $key;\n});"
+      },
+      {
+        "hook": "hlm_filters_after_enqueued_scripts",
+        "title": "Add custom JS after plugin scripts",
+        "code": "add_action('hlm_filters_after_enqueued_scripts', function(): void {\n    wp_enqueue_script('my-hlm-addon', plugin_dir_url(__FILE__) . 'addon.js', ['hlm-filters'], '1.0', true);\n});"
+      }
+    ]
+  }
+}
