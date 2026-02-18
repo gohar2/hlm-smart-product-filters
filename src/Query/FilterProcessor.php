@@ -2,6 +2,8 @@
 
 namespace HLM\Filters\Query;
 
+use HLM\Filters\Support\TermGrouper;
+
 final class FilterProcessor
 {
     private FilterValidator $validator;
@@ -159,6 +161,10 @@ final class FilterProcessor
             // Checks both attribute_pa_{key} and attribute_{key} meta keys to handle
             // both global taxonomy attributes and custom product attributes.
             if ($type === 'attribute') {
+                // Expand to include all sibling slugs/IDs from duplicate-name groups
+                // so that products assigned to any underlying term are included.
+                $values   = TermGrouper::expand_slugs($taxonomy, $values);
+                $term_ids = TermGrouper::expand_term_ids($taxonomy, $term_ids);
                 $attr_ids = $this->find_attribute_products($taxonomy, $source_key, $term_ids, $values);
                 if ($debug_mode) {
                     $step['method'] = 'attribute_sql';
@@ -169,7 +175,9 @@ final class FilterProcessor
                 continue;
             }
 
-            // Non-attribute filters: use standard tax_query
+            // Non-attribute filters: use standard tax_query.
+            // Expand term IDs to cover duplicate-name groups (no-op for clean taxonomies).
+            $term_ids = TermGrouper::expand_term_ids($taxonomy, $term_ids);
             $operator = ($filter['behavior']['operator'] ?? 'OR') === 'AND' ? 'AND' : 'IN';
 
             $tax_clause = [

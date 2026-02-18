@@ -6,6 +6,7 @@ use HLM\Filters\Frontend\Assets;
 use HLM\Filters\Query\FilterValidator;
 use HLM\Filters\Query\FacetCalculator;
 use HLM\Filters\Support\Config;
+use HLM\Filters\Support\TermGrouper;
 
 final class Shortcode
 {
@@ -139,8 +140,15 @@ final class Shortcode
             if ($taxonomy === '') {
                 continue;
             }
+            $data_source = $filter['data_source'] ?? 'taxonomy';
             $hide_empty = (bool) ($filter['visibility']['hide_empty'] ?? false);
             $counts = $counts_by_filter[$key] ?? [];
+
+            // Merge secondary term counts into their primaries for grouped taxonomies.
+            // No-op for taxonomies without duplicate-name terms.
+            if ($data_source === 'attribute') {
+                $counts = TermGrouper::merge_counts($taxonomy, $counts);
+            }
 
             // Use facet counts to determine which terms to display.
             // This ensures terms reflect the FILTERED product set (not just page context).
@@ -151,8 +159,13 @@ final class Shortcode
                 }
             }
 
-            // Always include currently selected terms so the user can deselect them
+            // Always include currently selected terms so the user can deselect them.
+            // For attribute filters, also include sibling terms from the same group
+            // so their IDs are in $available_term_ids and the correct checked state is shown.
             $selected_slugs = $selected[$key] ?? [];
+            if ($data_source === 'attribute' && !empty($selected_slugs)) {
+                $selected_slugs = TermGrouper::expand_slugs($taxonomy, $selected_slugs);
+            }
             if (!empty($selected_slugs)) {
                 $selected_term_objs = get_terms([
                     'taxonomy' => $taxonomy,
@@ -192,6 +205,14 @@ final class Shortcode
             if (is_wp_error($terms)) {
                 $terms = [];
             }
+
+            // Remove secondary (duplicate-name) term objects so only one entry appears
+            // per unique display name. The primary term's name and slug are kept as-is.
+            // No-op for taxonomies without duplicate-name terms.
+            if ($data_source === 'attribute') {
+                $terms = TermGrouper::dedupe_terms($taxonomy, $terms);
+            }
+
             $layout = (string) ($filter['ui']['layout'] ?? 'inherit');
             if ($layout === '' || $layout === 'inherit') {
                 $layout = (string) ($config['global']['ui']['list_layout'] ?? 'stacked');

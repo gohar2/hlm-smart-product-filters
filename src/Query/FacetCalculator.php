@@ -3,6 +3,7 @@
 namespace HLM\Filters\Query;
 
 use HLM\Filters\Cache\CacheStore;
+use HLM\Filters\Support\TermGrouper;
 use WP_Query;
 
 final class FacetCalculator
@@ -121,12 +122,14 @@ final class FacetCalculator
             if ($is_attribute) {
                 $source_key = (string) ($filter['source_key'] ?? '');
                 $counts = $this->attribute_counts($taxonomy, $source_key, $object_ids);
+                $counts = TermGrouper::merge_counts($taxonomy, $counts);
             } else {
                 $counts = $this->taxonomy_counts(
                     $taxonomy,
                     $object_ids,
                     $include_children && $is_hierarchical
                 );
+                $counts = TermGrouper::merge_counts($taxonomy, $counts);
             }
 
             $result[$key] = $counts;

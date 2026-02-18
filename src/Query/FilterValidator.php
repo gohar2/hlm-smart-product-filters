@@ -2,6 +2,8 @@
 
 namespace HLM\Filters\Query;
 
+use HLM\Filters\Support\TermGrouper;
+
 final class FilterValidator
 {
     public function normalize(array $params): array
@@ -40,6 +42,10 @@ final class FilterValidator
         if (!$values) {
             return [];
         }
+
+        // Expand grouped slugs so all sibling terms in a duplicate-name group are resolved.
+        // Non-grouped taxonomies: no-op, $values returned unchanged.
+        $values = TermGrouper::expand_slugs($taxonomy, $values);
 
         $terms = get_terms([
             'taxonomy' => $taxonomy,
