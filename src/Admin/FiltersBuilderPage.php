@@ -148,13 +148,14 @@ final class FiltersBuilderPage
         $tag_mode      = $vis['tag_mode'] ?? 'all';
 
         $clean = [
-            'hide_empty'          => !empty($vis['hide_empty']),
-            'include_children'    => !empty($vis['include_children']),
+            'hide_empty'           => !empty($vis['hide_empty']),
+            'include_children'     => !empty($vis['include_children']),
             'include_tag_children' => !empty($vis['include_tag_children']),
-            'show_on_categories'  => [],
-            'hide_on_categories'  => [],
-            'show_on_tags'        => [],
-            'hide_on_tags'        => [],
+            'show_on_categories'   => [],
+            'hide_on_categories'   => [],
+            'show_on_tags'         => [],
+            'hide_on_tags'         => [],
+            'exclude_terms'        => [],
         ];
 
         if ($category_mode === 'include') {
@@ -167,6 +168,13 @@ final class FiltersBuilderPage
             $clean['show_on_tags'] = array_map('absint', (array) ($vis['show_on_tags'] ?? []));
         } elseif ($tag_mode === 'exclude') {
             $clean['hide_on_tags'] = array_map('absint', (array) ($vis['hide_on_tags'] ?? []));
+        }
+
+        // Sanitize excluded terms
+        if (!empty($vis['exclude_terms']) && is_array($vis['exclude_terms'])) {
+            $clean['exclude_terms'] = array_map('absint', $vis['exclude_terms']);
+            $clean['exclude_terms'] = array_filter($clean['exclude_terms']); // Remove zeros
+            $clean['exclude_terms'] = array_values($clean['exclude_terms']); // Re-index
         }
 
         return $clean;
@@ -590,8 +598,24 @@ final class FiltersBuilderPage
         );
         // Terms will be populated via JavaScript when source changes
         // But we need to render currently selected terms so they persist
+        // Determine the taxonomy for proper term retrieval
+        $exclude_taxonomy = '';
+        if ($data_source === 'product_cat') {
+            $exclude_taxonomy = 'product_cat';
+        } elseif ($data_source === 'product_tag') {
+            $exclude_taxonomy = 'product_tag';
+        } elseif ($data_source === 'attribute' && $source_key !== '') {
+            $exclude_taxonomy = strpos($source_key, 'pa_') === 0 ? $source_key : 'pa_' . $source_key;
+        } elseif ($data_source === 'taxonomy' && $source_key !== '') {
+            $exclude_taxonomy = $source_key;
+        }
+
         foreach ($exclude_terms as $term_id) {
-            $term = get_term((int) $term_id);
+            if ($exclude_taxonomy !== '') {
+                $term = get_term((int) $term_id, $exclude_taxonomy);
+            } else {
+                $term = get_term((int) $term_id);
+            }
             if ($term && !is_wp_error($term)) {
                 printf(
                     '<option value="%d" selected>%s</option>',

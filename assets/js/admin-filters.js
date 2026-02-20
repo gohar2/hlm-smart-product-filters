@@ -754,10 +754,17 @@
 
       if (!$select.length) { return; }
 
-      // Determine taxonomy
-      var taxonomy = sourceKey;
-      if (dataSource === 'attribute' && sourceKey) {
-        taxonomy = 'pa_' + sourceKey.replace(/^pa_/, '');
+      // Determine taxonomy based on data source
+      var taxonomy = '';
+      if (dataSource === 'product_cat') {
+        taxonomy = 'product_cat';
+      } else if (dataSource === 'product_tag') {
+        taxonomy = 'product_tag';
+      } else if (dataSource === 'attribute' && sourceKey) {
+        // Ensure pa_ prefix for attribute taxonomies
+        taxonomy = sourceKey.indexOf('pa_') === 0 ? sourceKey : 'pa_' + sourceKey;
+      } else if (dataSource === 'taxonomy' && sourceKey) {
+        taxonomy = sourceKey;
       } else if (dataSource === 'meta') {
         // Meta filters don't have terms to exclude
         $select.empty().prop('disabled', true).hide();
