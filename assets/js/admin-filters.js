@@ -531,6 +531,7 @@
     updateSourcePickerFromFields($row);
     updateVisibilityMode($row, 'category');
     updateVisibilityMode($row, 'tag');
+    populateExcludeTerms($row);
     renderPreview();
   }
 
@@ -731,6 +732,88 @@
       return confirm(HLMFiltersAdmin.i18n.confirmReplace);
     });
 
+    // Exclude terms: Select all/Clear
+    $(document).on('click', '.hlm-select-all-terms', function (e) {
+      e.preventDefault();
+      var $row = $(this).closest('.hlm-filter-row');
+      $row.find('.hlm-exclude-terms-select option').prop('selected', true);
+    });
+    $(document).on('click', '.hlm-clear-all-terms', function (e) {
+      e.preventDefault();
+      var $row = $(this).closest('.hlm-filter-row');
+      $row.find('.hlm-exclude-terms-select option').prop('selected', false);
+    });
+
+    // Populate exclude terms when source changes
+    function populateExcludeTerms($row) {
+      var dataSource = $row.find('.hlm-data-source').val();
+      var sourceKey  = $row.find('.hlm-source-key').val();
+      var $select    = $row.find('.hlm-exclude-terms-select');
+
+      if (!$select.length) { return; }
+
+      // Determine taxonomy
+      var taxonomy = sourceKey;
+      if (dataSource === 'attribute' && sourceKey) {
+        taxonomy = 'pa_' + sourceKey.replace(/^pa_/, '');
+      } else if (dataSource === 'meta') {
+        // Meta filters don't have terms to exclude
+        $select.empty().prop('disabled', true);
+        return;
+      }
+
+      if (!taxonomy) {
+        $select.empty().prop('disabled', true);
+        return;
+      }
+
+      // Store currently selected values
+      var selectedValues = [];
+      $select.find('option:selected').each(function () {
+        selectedValues.push($(this).val());
+      });
+
+      // Fetch terms via AJAX
+      $select.prop('disabled', true);
+      $.post(HLMFiltersAdmin.ajaxUrl, {
+        action: 'hlm_get_terms',
+        nonce: HLMFiltersAdmin.nonce,
+        taxonomy: taxonomy
+      }).done(function (response) {
+        if (response && response.success && response.data && response.data.terms) {
+          $select.empty();
+          response.data.terms.forEach(function (term) {
+            var $option = $('<option></option>')
+              .val(term.id)
+              .text(term.name);
+            if (selectedValues.indexOf(String(term.id)) !== -1) {
+              $option.prop('selected', true);
+            }
+            $select.append($option);
+          });
+          $select.prop('disabled', false);
+        } else {
+          $select.empty().prop('disabled', true);
+        }
+      }).fail(function () {
+        $select.empty().prop('disabled', true);
+      });
+    }
+
+    // Trigger population when source changes
+    $(document).on('change', '.hlm-source-picker', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      setTimeout(function () { populateExcludeTerms($row); }, 100);
+    });
+    $(document).on('change input', '[name*="[custom_source]"]', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      setTimeout(function () { populateExcludeTerms($row); }, 100);
+    });
+    $(document).on('change', '.hlm-data-source, .hlm-source-key', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      setTimeout(function () { populateExcludeTerms($row); }, 100);
+    });
+
     // Initialize existing rows
     $list.find('.hlm-filter-row').each(function () {
       var $row = $(this);
@@ -738,6 +821,7 @@
       updateSourcePickerFromFields($row);
       updateVisibilityMode($row, 'category');
       updateVisibilityMode($row, 'tag');
+      populateExcludeTerms($row);
     });
 
     renderPreview();

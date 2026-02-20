@@ -231,6 +231,7 @@ final class Config
                     'hide_on_tags' => $this->sanitize_id_list($visibility['hide_on_tags'] ?? []),
                     'include_tag_children' => $this->to_bool($visibility['include_tag_children'] ?? true),
                     'hide_empty' => $this->to_bool($visibility['hide_empty'] ?? false),
+                    'exclude_terms' => $this->sanitize_id_list($visibility['exclude_terms'] ?? []),
                 ],
                 'ui' => [
                     'style' => $ui_style,

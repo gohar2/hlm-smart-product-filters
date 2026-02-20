@@ -350,6 +350,7 @@ final class FiltersBuilderPage
         $hide_on_categories   = $filter['visibility']['hide_on_categories'] ?? [];
         $show_on_tags         = $filter['visibility']['show_on_tags'] ?? [];
         $hide_on_tags         = $filter['visibility']['hide_on_tags'] ?? [];
+        $exclude_terms        = $filter['visibility']['exclude_terms'] ?? [];
 
         // UI
         $swatch_type          = $filter['ui']['swatch_type'] ?? 'color';
@@ -576,6 +577,36 @@ final class FiltersBuilderPage
             esc_html__('Hide empty terms', 'hlm-smart-product-filters')
         );
         echo '</label>';
+
+        // Term exclusion
+        echo '<div class="hlm-visibility-group hlm-exclude-terms-group">';
+        echo '<label class="hlm-filter-field-label">' . esc_html__('Exclude specific terms', 'hlm-smart-product-filters') . '</label>';
+        echo '<p class="description">' . esc_html__('Select terms to exclude from this filter.', 'hlm-smart-product-filters') . '</p>';
+        echo '<div class="hlm-exclude-terms-container">';
+        printf(
+            '<select multiple name="filters[%s][visibility][exclude_terms][]" class="hlm-exclude-terms-select" data-filter-index="%s" size="6">',
+            esc_attr($index),
+            esc_attr($index)
+        );
+        // Terms will be populated via JavaScript when source changes
+        // But we need to render currently selected terms so they persist
+        foreach ($exclude_terms as $term_id) {
+            $term = get_term((int) $term_id);
+            if ($term && !is_wp_error($term)) {
+                printf(
+                    '<option value="%d" selected>%s</option>',
+                    (int) $term_id,
+                    esc_html($term->name)
+                );
+            }
+        }
+        echo '</select>';
+        echo '<div class="hlm-exclude-terms-actions">';
+        printf('<button type="button" class="button hlm-select-all-terms" data-target="filters-%s-exclude-terms">%s</button>', esc_attr($index), esc_html__('Select all', 'hlm-smart-product-filters'));
+        printf('<button type="button" class="button hlm-clear-all-terms" data-target="filters-%s-exclude-terms">%s</button>', esc_attr($index), esc_html__('Clear', 'hlm-smart-product-filters'));
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
 
         // Category visibility
         echo '<div class="hlm-visibility-group">';

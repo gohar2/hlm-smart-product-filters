@@ -213,6 +213,15 @@ final class Shortcode
                 $terms = TermGrouper::dedupe_terms($taxonomy, $terms);
             }
 
+            // Exclude specific terms if configured
+            $exclude_terms = $filter['visibility']['exclude_terms'] ?? [];
+            if (!empty($exclude_terms) && is_array($exclude_terms)) {
+                $terms = array_filter($terms, static function ($term) use ($exclude_terms) {
+                    return !in_array((int) $term->term_id, array_map('intval', $exclude_terms), true);
+                });
+                $terms = array_values($terms); // Re-index after filtering
+            }
+
             $layout = (string) ($filter['ui']['layout'] ?? 'inherit');
             if ($layout === '' || $layout === 'inherit') {
                 $layout = (string) ($config['global']['ui']['list_layout'] ?? 'stacked');
