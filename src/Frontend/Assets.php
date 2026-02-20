@@ -39,7 +39,7 @@ final class Assets
         );
 
         $config = $this->config->get();
-        $enable_ajax = (bool) ($config['global']['enable_ajax'] ?? true);
+        $enable_ajax = (bool) ($config['global']['enable_ajax'] ?? false);
         $enable_apply_button = (bool) ($config['global']['enable_apply_button'] ?? false);
 
         wp_localize_script('hlm-filters', 'HLMFilters', [

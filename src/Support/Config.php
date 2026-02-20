@@ -26,7 +26,7 @@ final class Config
         return [
             'schema_version' => self::SCHEMA_VERSION,
             'global' => [
-                'enable_ajax' => true,
+                'enable_ajax' => false,
                 'enable_cache' => true,
                 'cache_ttl_seconds' => 300,
                 'products_per_page' => 12,

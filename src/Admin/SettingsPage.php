@@ -123,7 +123,7 @@ final class SettingsPage
         // Left column
         echo '<div class="hlm-column">';
         echo '<h2 class="hlm-settings-group-title">' . esc_html__('Performance & Behavior', 'hlm-smart-product-filters') . '</h2>';
-        $this->render_checkbox('enable_ajax', __('Enable AJAX filtering', 'hlm-smart-product-filters'));
+        // $this->render_checkbox('enable_ajax', __('Enable AJAX filtering', 'hlm-smart-product-filters'));
         $this->render_checkbox('enable_cache', __('Enable caching', 'hlm-smart-product-filters'));
         $this->render_text('cache_ttl_seconds', __('Cache TTL (seconds)', 'hlm-smart-product-filters'));
 
