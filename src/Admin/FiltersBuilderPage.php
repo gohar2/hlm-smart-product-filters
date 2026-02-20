@@ -601,6 +601,10 @@ final class FiltersBuilderPage
             }
         }
         echo '</select>';
+        echo '<div class="hlm-exclude-terms-loader" style="display:none;">';
+        echo '<span class="spinner is-active"></span>';
+        echo '<span>' . esc_html__('Loading terms...', 'hlm-smart-product-filters') . '</span>';
+        echo '</div>';
         echo '<div class="hlm-exclude-terms-actions">';
         printf('<button type="button" class="button hlm-select-all-terms" data-target="filters-%s-exclude-terms">%s</button>', esc_attr($index), esc_html__('Select all', 'hlm-smart-product-filters'));
         printf('<button type="button" class="button hlm-clear-all-terms" data-target="filters-%s-exclude-terms">%s</button>', esc_attr($index), esc_html__('Clear', 'hlm-smart-product-filters'));

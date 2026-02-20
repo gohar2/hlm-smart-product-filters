@@ -531,7 +531,7 @@
     updateSourcePickerFromFields($row);
     updateVisibilityMode($row, 'category');
     updateVisibilityMode($row, 'tag');
-    populateExcludeTerms($row);
+    populateExcludeTerms($row, false);
     renderPreview();
   }
 
@@ -745,10 +745,12 @@
     });
 
     // Populate exclude terms when source changes
-    function populateExcludeTerms($row) {
+    function populateExcludeTerms($row, showLoader) {
       var dataSource = $row.find('.hlm-data-source').val();
       var sourceKey  = $row.find('.hlm-source-key').val();
       var $select    = $row.find('.hlm-exclude-terms-select');
+      var $loader    = $row.find('.hlm-exclude-terms-loader');
+      var $actions   = $row.find('.hlm-exclude-terms-actions');
 
       if (!$select.length) { return; }
 
@@ -758,12 +760,16 @@
         taxonomy = 'pa_' + sourceKey.replace(/^pa_/, '');
       } else if (dataSource === 'meta') {
         // Meta filters don't have terms to exclude
-        $select.empty().prop('disabled', true);
+        $select.empty().prop('disabled', true).hide();
+        $loader.hide();
+        $actions.hide();
         return;
       }
 
       if (!taxonomy) {
-        $select.empty().prop('disabled', true);
+        $select.empty().prop('disabled', true).hide();
+        $loader.hide();
+        $actions.hide();
         return;
       }
 
@@ -773,8 +779,16 @@
         selectedValues.push($(this).val());
       });
 
+      // Show loader if requested
+      if (showLoader) {
+        $select.hide();
+        $actions.hide();
+        $loader.show();
+      } else {
+        $select.prop('disabled', true);
+      }
+
       // Fetch terms via AJAX
-      $select.prop('disabled', true);
       $.post(HLMFiltersAdmin.ajaxUrl, {
         action: 'hlm_get_terms',
         nonce: HLMFiltersAdmin.nonce,
@@ -791,27 +805,42 @@
             }
             $select.append($option);
           });
-          $select.prop('disabled', false);
+          $select.prop('disabled', false).show();
+          $actions.show();
         } else {
-          $select.empty().prop('disabled', true);
+          $select.empty().prop('disabled', true).show();
+          $actions.show();
         }
+        $loader.hide();
       }).fail(function () {
-        $select.empty().prop('disabled', true);
+        $select.empty().prop('disabled', true).show();
+        $actions.show();
+        $loader.hide();
       });
     }
 
     // Trigger population when source changes
     $(document).on('change', '.hlm-source-picker', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      setTimeout(function () { populateExcludeTerms($row); }, 100);
+      setTimeout(function () { populateExcludeTerms($row, false); }, 100);
     });
     $(document).on('change input', '[name*="[custom_source]"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      setTimeout(function () { populateExcludeTerms($row); }, 100);
+      setTimeout(function () { populateExcludeTerms($row, false); }, 100);
     });
     $(document).on('change', '.hlm-data-source, .hlm-source-key', function () {
       var $row = $(this).closest('.hlm-filter-row');
-      setTimeout(function () { populateExcludeTerms($row); }, 100);
+      setTimeout(function () { populateExcludeTerms($row, false); }, 100);
+    });
+
+    // When visibility tab is clicked, load terms with loader
+    $(document).on('click', '.hlm-filter-row .hlm-tab-button[data-tab="visibility"]', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      var $select = $row.find('.hlm-exclude-terms-select');
+      // Only show loader and fetch if select is empty (not yet loaded)
+      if ($select.length && $select.find('option').length === 0) {
+        setTimeout(function () { populateExcludeTerms($row, true); }, 50);
+      }
     });
 
     // Initialize existing rows
@@ -821,7 +850,8 @@
       updateSourcePickerFromFields($row);
       updateVisibilityMode($row, 'category');
       updateVisibilityMode($row, 'tag');
-      populateExcludeTerms($row);
+      // Don't auto-populate on page load - only when visibility tab is clicked
+      // This avoids unnecessary AJAX calls for all filters on page load
     });
 
     renderPreview();
