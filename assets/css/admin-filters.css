@@ -103,7 +103,7 @@
 .hlm-exclude-terms-group { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 .hlm-exclude-terms-group .description { margin-bottom: 12px; font-size: 13px; color: #64748b; max-width: 500px; }
 .hlm-exclude-terms-container { display: flex; flex-direction: column; gap: 8px; position: relative; }
-.hlm-exclude-terms-select { width: 100%; max-width: 500px; padding: 6px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; line-height: 1.5; }
+.hlm-exclude-terms-select { width: 100%; max-width: 500px; padding: 6px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; line-height: 1.5; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
 .hlm-exclude-terms-select:focus { border-color: #0f766e; box-shadow: 0 0 0 1px rgba(15,118,110,0.2); outline: none; }
 .hlm-exclude-terms-select:disabled { opacity: 0.5; cursor: not-allowed; background: #f8fafc; }
 .hlm-exclude-terms-select option { padding: 4px 8px; }

@@ -806,6 +806,7 @@
             $select.append($option);
           });
           $select.prop('disabled', false).show();
+          $select.data('terms-loaded', true); // Mark as fully loaded
           $actions.show();
         } else {
           $select.empty().prop('disabled', true).show();
@@ -837,10 +838,36 @@
     $(document).on('click', '.hlm-filter-row .hlm-tab-button[data-tab="visibility"]', function () {
       var $row = $(this).closest('.hlm-filter-row');
       var $select = $row.find('.hlm-exclude-terms-select');
-      // Only show loader and fetch if select is empty (not yet loaded)
-      if ($select.length && $select.find('option').length === 0) {
+      // Check if we need to fetch terms:
+      // - Select is empty (not yet loaded), OR
+      // - Select only has selected options (pre-populated from server but missing full list)
+      var needsFetch = $select.length && (
+        $select.find('option').length === 0 ||
+        ($select.find('option:selected').length > 0 && !$select.data('terms-loaded'))
+      );
+      if (needsFetch) {
         setTimeout(function () { populateExcludeTerms($row, true); }, 50);
       }
+    });
+
+    // Prevent drag-to-select behavior on multi-select
+    // Only allow click-based selection
+    $(document).on('mousedown', '.hlm-exclude-terms-select', function (e) {
+      e.preventDefault();
+      var $option = $(e.target);
+
+      if ($option.is('option')) {
+        var wasSelected = $option.prop('selected');
+        $option.prop('selected', !wasSelected);
+      }
+
+      return false;
+    });
+
+    // Prevent text selection during interaction
+    $(document).on('mousemove', '.hlm-exclude-terms-select', function (e) {
+      e.preventDefault();
+      return false;
     });
 
     // Initialize existing rows
