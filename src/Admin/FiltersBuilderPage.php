@@ -709,11 +709,11 @@ final class FiltersBuilderPage
         $this->text_field($index, 'key', __('Key (query string)', 'hlm-smart-product-filters'), $key, [
             'data-help' => __('Used in URL, keep short.', 'hlm-smart-product-filters'),
         ]);
-        $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
-            'both'      => __('Shortcode + auto', 'hlm-smart-product-filters'),
-            'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
-            'auto'      => __('Auto inject only', 'hlm-smart-product-filters'),
-        ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
+        // $this->select_field($index, 'render_mode', __('Render mode', 'hlm-smart-product-filters'), $render_mode, [
+        //     'both'      => __('Shortcode + auto', 'hlm-smart-product-filters'),
+        //     'shortcode' => __('Shortcode only', 'hlm-smart-product-filters'),
+        //     'auto'      => __('Auto inject only', 'hlm-smart-product-filters'),
+        // ], ['data-help' => __('Where this filter shows.', 'hlm-smart-product-filters')]);
 
         echo '</div>';
         echo '</div>';
@@ -930,19 +930,6 @@ final class FiltersBuilderPage
                     ['id' => 'color', 'label' => 'Color', 'key' => 'color', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'color', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'color', 'show_more_threshold' => 8]],
                     ['id' => 'size', 'label' => 'Size', 'key' => 'size', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'size', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'text', 'show_more_threshold' => 10]],
                     ['id' => 'brand', 'label' => 'Brand', 'key' => 'brand', 'type' => 'checkbox', 'data_source' => 'attribute', 'source_key' => 'brand', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
-                    ['id' => 'price', 'label' => 'Price Range', 'key' => 'price', 'type' => 'range', 'data_source' => 'meta', 'source_key' => '_price', 'behavior' => ['multi_select' => false], 'visibility' => [], 'ui' => []],
-                ],
-            ],
-            'pet_focused' => [
-                'name'        => __('Pet & Dog Products', 'hlm-smart-product-filters'),
-                'description' => __('Breeds, themes, colors, sizes, and price.', 'hlm-smart-product-filters'),
-                'icon'        => 'dashicons-heart',
-                'filters'     => [
-                    ['id' => 'category', 'label' => 'Product Categories', 'key' => 'category', 'type' => 'checkbox', 'data_source' => 'product_cat', 'source_key' => 'product_cat', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true, 'include_children' => true], 'ui' => ['show_more_threshold' => 5]],
-                    ['id' => 'breeds', 'label' => 'Breeds', 'key' => 'breeds', 'type' => 'checkbox', 'data_source' => 'taxonomy', 'source_key' => 'breeds', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
-                    ['id' => 'theme', 'label' => 'Themes', 'key' => 'theme', 'type' => 'checkbox', 'data_source' => 'taxonomy', 'source_key' => 'theme', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['show_more_threshold' => 5]],
-                    ['id' => 'color', 'label' => 'Color', 'key' => 'color', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'color', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'color', 'show_more_threshold' => 8]],
-                    ['id' => 'size', 'label' => 'Size', 'key' => 'size', 'type' => 'swatch', 'data_source' => 'attribute', 'source_key' => 'size', 'behavior' => ['multi_select' => true, 'operator' => 'OR'], 'visibility' => ['hide_empty' => true], 'ui' => ['swatch_type' => 'text', 'show_more_threshold' => 10]],
                     ['id' => 'price', 'label' => 'Price Range', 'key' => 'price', 'type' => 'range', 'data_source' => 'meta', 'source_key' => '_price', 'behavior' => ['multi_select' => false], 'visibility' => [], 'ui' => []],
                 ],
             ],

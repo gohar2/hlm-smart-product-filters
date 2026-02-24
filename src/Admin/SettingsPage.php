@@ -131,10 +131,10 @@ final class SettingsPage
         $this->render_text('products_per_page', __('Products per page', 'hlm-smart-product-filters'));
         $this->render_text('default_sort', __('Default sort', 'hlm-smart-product-filters'));
         $this->render_checkbox('enable_sort', __('Enable Sort By', 'hlm-smart-product-filters'));
-        $this->render_select('product_render_mode', __('Product render mode', 'hlm-smart-product-filters'), [
-            'woocommerce' => __('WooCommerce loop', 'hlm-smart-product-filters'),
-            'elementor'   => __('Elementor template', 'hlm-smart-product-filters'),
-        ]);
+        // $this->render_select('product_render_mode', __('Product render mode', 'hlm-smart-product-filters'), [
+        //     'woocommerce' => __('WooCommerce loop', 'hlm-smart-product-filters'),
+        //     'elementor'   => __('Elementor template', 'hlm-smart-product-filters'),
+        // ]);
         $this->render_elementor_template_field();
 
         echo '<h2 class="hlm-settings-group-title">' . esc_html__('Debug', 'hlm-smart-product-filters') . '</h2>';
