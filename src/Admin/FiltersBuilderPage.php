@@ -269,14 +269,14 @@ final class FiltersBuilderPage
         echo '<input type="hidden" name="action" value="hlm_save_filters">';
         wp_nonce_field('hlm_save_filters');
 
-        echo '<p>' . esc_html__('Create filters, reorder them, and set visibility rules.', 'hlm-smart-product-filters') . '</p>';
-
+        // Row 1: Template selector (full width)
         $this->render_template_selector();
 
-        echo '<div class="hlm-admin-preview">';
-        echo '<h2>' . esc_html__('Live Preview', 'hlm-smart-product-filters') . '</h2>';
-        echo '<div id="hlm-filters-preview"></div>';
-        echo '</div>';
+        // Row 2: Builder (70%) | Live Preview (30%)
+        echo '<div class="hlm-builder-layout">';
+
+        // Left column — Builder
+        echo '<div class="hlm-builder-main">';
 
         if (empty($filters)) {
             echo '<div class="hlm-empty-state">';
@@ -303,6 +303,18 @@ final class FiltersBuilderPage
         echo '<p class="submit">';
         submit_button(__('Save Filters', 'hlm-smart-product-filters'), 'primary', 'submit', false);
         echo '</p>';
+
+        echo '</div>'; // .hlm-builder-main
+
+        // Right column — Live Preview
+        echo '<div class="hlm-builder-sidebar">';
+        echo '<div class="hlm-admin-preview">';
+        echo '<h2>' . esc_html__('Live Preview', 'hlm-smart-product-filters') . '</h2>';
+        echo '<div id="hlm-filters-preview"></div>';
+        echo '</div>';
+        echo '</div>'; // .hlm-builder-sidebar
+
+        echo '</div>'; // .hlm-builder-layout
 
         echo '<script type="text/template" id="hlm-filter-template">';
         $this->render_filter_row('__INDEX__', []);
