@@ -396,31 +396,48 @@
       var $overlay = $('<div class="hlm-admin-modal" role="dialog" aria-modal="true"></div>');
       var $content = $('<div class="hlm-admin-modal-content"></div>');
 
-      var $header = $('<div class="hlm-admin-modal-header"></div>');
-      $header.append('<h3>Swatch Editor</h3>');
+      /* --- Sticky toolbar --- */
+      var $toolbar = $('<div class="hlm-modal-toolbar"></div>');
 
-      var $actions  = $('<div class="hlm-admin-modal-actions"></div>');
-      var $save     = $('<button type="button" class="button button-primary">Save</button>');
+      // Top row: title + action buttons
+      var $topRow = $('<div class="hlm-modal-toolbar-top"></div>');
+      var $title  = $('<div class="hlm-modal-toolbar-title"><span class="dashicons dashicons-art"></span> Swatch Editor</div>');
+      var $actions = $('<div class="hlm-modal-toolbar-actions"></div>');
 
       if (swatchType === 'color') {
-        var $populate = $('<button type="button" class="button hlm-populate-colors">Populate Predefined Colors</button>');
+        var $populate = $('<button type="button" class="hlm-btn hlm-btn--outline hlm-populate-colors"><span class="dashicons dashicons-database-import"></span> Populate Colors</button>');
         $actions.append($populate);
         $populate.on('click', function () {
           populatePredefinedColors($list, $actions);
         });
       }
 
-      $actions.append($save);
-      $header.append($actions);
+      var $save  = $('<button type="button" class="hlm-btn hlm-btn--primary"><span class="dashicons dashicons-saved"></span> Save</button>');
+      var $close = $('<button type="button" class="hlm-btn hlm-btn--ghost"><span class="dashicons dashicons-no-alt"></span></button>');
+      $actions.append($save, $close);
 
-      var $close = $('<button type="button" class="button">Close</button>');
-      $header.append($close);
+      $topRow.append($title, $actions);
 
+      // Bottom row: search + count
+      var $bottomRow = $('<div class="hlm-modal-toolbar-bottom"></div>');
+      var $searchWrap = $('<div class="hlm-modal-search-wrap"></div>');
+      var $searchIcon = $('<span class="dashicons dashicons-search hlm-modal-search-icon"></span>');
+      var $searchInput = $('<input type="text" class="hlm-modal-search" placeholder="Search terms...">');
+      var $searchClear = $('<button type="button" class="hlm-modal-search-clear" style="display:none;"><span class="dashicons dashicons-dismiss"></span></button>');
+      $searchWrap.append($searchIcon, $searchInput, $searchClear);
+      var $count = $('<span class="hlm-modal-count"></span>');
+      $bottomRow.append($searchWrap, $count);
+
+      $toolbar.append($topRow, $bottomRow);
+
+      /* --- Term list --- */
       var $list = $('<div class="hlm-admin-modal-list"></div>');
+      var totalTerms = response.data.terms.length;
 
       response.data.terms.forEach(function (term) {
         var value = map[term.id] || term.meta.color || term.meta.swatch_color || '';
         var $mrow = $('<div class="hlm-admin-modal-row"></div>');
+        $mrow.attr('data-search-name', term.name.toLowerCase());
 
         var $label   = $('<div class="hlm-admin-modal-row-label"></div>');
         var $preview = $('<div class="hlm-swatch-preview"></div>');
@@ -465,10 +482,66 @@
         $list.append($mrow);
       });
 
-      $content.append($header, $list);
+      $count.text(totalTerms + ' term' + (totalTerms !== 1 ? 's' : ''));
+
+      $content.append($toolbar, $list);
       $overlay.append($content);
       $('body').append($overlay);
 
+      // Focus the search input after opening
+      setTimeout(function () { $searchInput.focus(); }, 100);
+
+      /* --- Search: highlight + sort --- */
+      var _searchTimeout;
+      $searchInput.on('input', function () {
+        clearTimeout(_searchTimeout);
+        var self = this;
+        _searchTimeout = setTimeout(function () {
+          var query = $(self).val().toLowerCase().trim();
+          $searchClear.toggle(query.length > 0);
+
+          var $rows = $list.children('.hlm-admin-modal-row');
+          if (!query) {
+            // Reset: remove highlights, restore original order
+            $rows.removeClass('hlm-search-hit hlm-search-exact').css('order', '');
+            $count.text(totalTerms + ' term' + (totalTerms !== 1 ? 's' : ''));
+            return;
+          }
+
+          var matchCount = 0;
+          $rows.each(function () {
+            var $row = $(this);
+            var name = $row.attr('data-search-name') || '';
+            var idx  = name.indexOf(query);
+
+            if (idx !== -1) {
+              matchCount++;
+              var isExact = (name === query);
+              var isStart = (idx === 0);
+              $row.removeClass('hlm-search-exact').addClass('hlm-search-hit');
+              if (isExact) {
+                $row.addClass('hlm-search-exact');
+                $row.css('order', -1000);
+              } else if (isStart) {
+                $row.css('order', -500);
+              } else {
+                $row.css('order', -100 + idx);
+              }
+            } else {
+              $row.removeClass('hlm-search-hit hlm-search-exact');
+              $row.css('order', 1000);
+            }
+          });
+
+          $count.text(matchCount + ' of ' + totalTerms + ' matched');
+        }, 150);
+      });
+
+      $searchClear.on('click', function () {
+        $searchInput.val('').trigger('input').focus();
+      });
+
+      /* --- Modal actions --- */
       $close.on('click', function () { $overlay.remove(); });
       $overlay.on('click', function (e) {
         if (e.target === this) { $overlay.remove(); }
