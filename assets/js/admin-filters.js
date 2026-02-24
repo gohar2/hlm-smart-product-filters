@@ -398,6 +398,21 @@
 
       var $header = $('<div class="hlm-admin-modal-header"></div>');
       $header.append('<h3>Swatch Editor</h3>');
+
+      var $actions  = $('<div class="hlm-admin-modal-actions"></div>');
+      var $save     = $('<button type="button" class="button button-primary">Save</button>');
+
+      if (swatchType === 'color') {
+        var $populate = $('<button type="button" class="button hlm-populate-colors">Populate Predefined Colors</button>');
+        $actions.append($populate);
+        $populate.on('click', function () {
+          populatePredefinedColors($list, $actions);
+        });
+      }
+
+      $actions.append($save);
+      $header.append($actions);
+
       var $close = $('<button type="button" class="button">Close</button>');
       $header.append($close);
 
@@ -450,20 +465,7 @@
         $list.append($mrow);
       });
 
-      var $actions  = $('<div class="hlm-admin-modal-actions"></div>');
-      var $save     = $('<button type="button" class="button button-primary">Save</button>');
-
-      if (swatchType === 'color') {
-        var $populate = $('<button type="button" class="button hlm-populate-colors">Populate Predefined Colors</button>');
-        $actions.append($populate);
-        $populate.on('click', function () {
-          populatePredefinedColors($list, $actions);
-        });
-      }
-
-      $actions.append($save);
-
-      $content.append($header, $list, $actions);
+      $content.append($header, $list);
       $overlay.append($content);
       $('body').append($overlay);
 

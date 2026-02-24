@@ -135,7 +135,7 @@ final class SettingsPage
         //     'woocommerce' => __('WooCommerce loop', 'hlm-smart-product-filters'),
         //     'elementor'   => __('Elementor template', 'hlm-smart-product-filters'),
         // ]);
-        $this->render_elementor_template_field();
+        // $this->render_elementor_template_field();
 
         echo '<h2 class="hlm-settings-group-title">' . esc_html__('Debug', 'hlm-smart-product-filters') . '</h2>';
         $this->render_checkbox('debug_mode', __('Debug mode', 'hlm-smart-product-filters'));
