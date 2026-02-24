@@ -189,39 +189,42 @@ $ui_header_style = isset($ui_header_style) ? (string) $ui_header_style : 'pill';
                         <p class="hlm-empty"><?php echo esc_html__('No options available.', 'hlm-smart-product-filters'); ?></p>
                     <?php endif; ?>
                 <?php elseif ($style === 'swatch') : ?>
-                    <ul class="hlm-swatch-list" id="<?php echo esc_attr($list_id); ?>">
+                    <?php $swatch_type = $filter['swatch_type'] ?? 'color'; ?>
+                    <div class="hlm-swatch-list hlm-swatch-list--<?php echo esc_attr($swatch_type); ?>" id="<?php echo esc_attr($list_id); ?>">
                         <?php foreach ($filter['terms'] as $index => $term) : ?>
                             <?php
-                            $count = $filter['counts'][$term->term_id] ?? null;
+                            $count  = $filter['counts'][$term->term_id] ?? null;
                             $swatch = $filter['swatch_map'][$term->term_id] ?? '';
-                            $swatch_type = $filter['swatch_type'] ?? 'color';
-                            if ($swatch === '') {
-                                $swatch = (string) get_term_meta($term->term_id, 'color', true);
-                            }
-                            if ($swatch === '') {
-                                $swatch = (string) get_term_meta($term->term_id, 'swatch_color', true);
+                            if ($swatch_type !== 'text') {
+                                if ($swatch === '') {
+                                    $swatch = (string) get_term_meta($term->term_id, 'color', true);
+                                }
+                                if ($swatch === '') {
+                                    $swatch = (string) get_term_meta($term->term_id, 'swatch_color', true);
+                                }
                             }
                             $hidden = $threshold > 0 && $index >= $threshold ? ' data-hlm-hidden="true"' : '';
+                            $is_checked = in_array($term->slug, $filter['selected'], true);
                             ?>
-                            <li<?php echo $hidden; ?>>
-                                <label class="hlm-swatch">
-                                    <input type="checkbox" name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][]" value="<?php echo esc_attr($term->slug); ?>" aria-label="<?php echo esc_attr($term->name); ?>" <?php checked(in_array($term->slug, $filter['selected'], true)); ?>>
-                                    <?php if ($swatch_type === 'image' && $swatch !== '') : ?>
-                                        <span class="hlm-swatch-chip hlm-swatch-image" style="background-image:url('<?php echo esc_url($swatch); ?>');"></span>
-                                    <?php elseif ($swatch_type === 'text' && $swatch !== '') : ?>
-                                        <span class="hlm-swatch-chip hlm-swatch-text"><?php echo esc_html($swatch); ?></span>
-                                    <?php else : ?>
-                                        <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch ? $swatch : '#ccc'); ?>"></span>
-                                    <?php endif; ?>
+                            <label class="hlm-swatch hlm-swatch--<?php echo esc_attr($swatch_type); ?><?php echo $is_checked ? ' is-active' : ''; ?>"<?php echo $hidden; ?> title="<?php echo esc_attr($term->name); ?>">
+                                <input type="checkbox" name="hlm_filters[<?php echo esc_attr($filter['key']); ?>][]" value="<?php echo esc_attr($term->slug); ?>" aria-label="<?php echo esc_attr($term->name); ?>" <?php checked($is_checked); ?>>
+                                <?php if ($swatch_type === 'image' && $swatch !== '') : ?>
+                                    <span class="hlm-swatch-chip hlm-swatch-image" style="background-image:url('<?php echo esc_url($swatch); ?>');"></span>
+                                <?php elseif ($swatch_type === 'text') : ?>
+                                    <span class="hlm-swatch-chip hlm-swatch-text"><?php echo esc_html($term->name); ?></span>
+                                <?php else : ?>
+                                    <span class="hlm-swatch-chip" style="background: <?php echo esc_attr($swatch ? $swatch : '#ccc'); ?>"></span>
+                                <?php endif; ?>
+                                <?php if ($swatch_type === 'color' || $swatch_type === 'image') : ?>
                                     <span class="hlm-swatch-label"><?php echo esc_html($term->name); ?></span>
-                                    <?php if (!empty($enable_counts) && $count !== null) : ?>
-                                        <span class="hlm-count" aria-hidden="true">(<?php echo esc_html($count); ?>)</span>
-                                        <span class="hlm-sr-only"><?php echo esc_html(sprintf(__('(%d items)', 'hlm-smart-product-filters'), $count)); ?></span>
-                                    <?php endif; ?>
-                                </label>
-                            </li>
+                                <?php endif; ?>
+                                <?php if (!empty($enable_counts) && $count !== null) : ?>
+                                    <span class="hlm-count" aria-hidden="true">(<?php echo esc_html($count); ?>)</span>
+                                    <span class="hlm-sr-only"><?php echo esc_html(sprintf(__('(%d items)', 'hlm-smart-product-filters'), $count)); ?></span>
+                                <?php endif; ?>
+                            </label>
                         <?php endforeach; ?>
-                    </ul>
+                    </div>
                     <?php if (!$filter['terms']) : ?>
                         <p class="hlm-empty"><?php echo esc_html__('No options available.', 'hlm-smart-product-filters'); ?></p>
                     <?php endif; ?>

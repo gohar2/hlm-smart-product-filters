@@ -449,38 +449,27 @@
   font-size: 0.9em;
 }
 
-/* Improved swatch grid responsiveness */
+/* ---- Swatch list ---- */
 .hlm-swatch-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(90px, 100%), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: calc(var(--hlm-spacing) * 0.6);
   max-width: 100%;
-  overflow-x: hidden;
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Shared swatch item */
 .hlm-swatch {
-  display: flex;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: calc(var(--hlm-spacing) * 0.5);
-  padding: calc(var(--hlm-spacing) * 0.5) calc(var(--hlm-spacing) * 0.6);
-  border-radius: calc(var(--hlm-radius) - 6px);
-  border: 1px solid var(--hlm-border);
-  background: #fff;
-  transition: all 0.15s ease;
+  gap: 4px;
   cursor: pointer;
   position: relative;
-  min-width: 0;
-  max-width: 100%;
+  transition: all 0.15s ease;
   box-sizing: border-box;
-}
-
-.hlm-swatch:hover {
-  border-color: var(--hlm-accent);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .hlm-swatch input[type="checkbox"] {
@@ -495,51 +484,116 @@
   left: 0;
 }
 
-.hlm-swatch input[type="checkbox"]:checked + .hlm-swatch-chip,
-.hlm-swatch:has(input[type="checkbox"]:checked) .hlm-swatch-chip {
-  border-color: var(--hlm-accent);
-  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2);
-}
-
-.hlm-swatch:has(input[type="checkbox"]:checked) {
-  border-color: var(--hlm-accent);
-  background: color-mix(in srgb, var(--hlm-accent) 8%, transparent);
-}
-
-.hlm-swatch-chip {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.15);
-  display: inline-block;
+/* ---- Color swatch ---- */
+.hlm-swatch--color .hlm-swatch-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--hlm-border);
+  display: block;
   flex-shrink: 0;
   box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
-.hlm-swatch-image {
+.hlm-swatch--color:hover .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.hlm-swatch--color.is-active .hlm-swatch-chip,
+.hlm-swatch--color:has(input:checked) .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  box-shadow: 0 0 0 2px var(--hlm-accent);
+}
+
+.hlm-swatch--color .hlm-swatch-label {
+  display: none; /* hidden by default for compact look, shown in tooltip via title */
+}
+
+/* ---- Image swatch ---- */
+.hlm-swatch--image .hlm-swatch-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--hlm-border);
   background-size: cover;
   background-position: center;
+  display: block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
-.hlm-swatch-text {
-  width: auto;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 24px;
-  text-align: center;
-  background: rgba(15, 23, 42, 0.08);
-  color: var(--hlm-text);
+.hlm-swatch--image:hover .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.hlm-swatch--image.is-active .hlm-swatch-chip,
+.hlm-swatch--image:has(input:checked) .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  box-shadow: 0 0 0 2px var(--hlm-accent);
+}
+
+.hlm-swatch--image .hlm-swatch-label {
+  display: none;
+}
+
+/* ---- Text swatch ---- */
+.hlm-swatch--text {
+  flex-direction: row;
+}
+
+.hlm-swatch--text .hlm-swatch-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 2px solid var(--hlm-border);
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hlm-text);
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.hlm-swatch--text:hover .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.hlm-swatch--text.is-active .hlm-swatch-chip,
+.hlm-swatch--text:has(input:checked) .hlm-swatch-chip {
+  border-color: var(--hlm-accent);
+  background: color-mix(in srgb, var(--hlm-accent) 10%, #fff);
+  color: var(--hlm-accent);
+  box-shadow: 0 0 0 1px var(--hlm-accent);
+}
+
+/* ---- Swatch focus styles ---- */
+.hlm-swatch:has(input:focus-visible) .hlm-swatch-chip {
+  outline: 3px solid var(--hlm-accent);
+  outline-offset: 2px;
 }
 
 .hlm-swatch-label {
+  font-size: 11px;
   font-weight: 500;
-  color: var(--hlm-text) !important;
+  color: var(--hlm-muted) !important;
+  text-align: center;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hlm-filter [data-hlm-hidden="true"] {
@@ -663,8 +717,8 @@
     padding: 8px 0;
   }
 
-  .hlm-swatch {
-    min-height: 44px;
+  .hlm-swatch--text .hlm-swatch-chip {
+    min-height: 38px;
   }
 
   .hlm-filter-list label {
@@ -673,10 +727,9 @@
     align-items: center;
   }
 
-  /* 2-column swatch grid on mobile */
+  /* Wrap swatches on mobile */
   .hlm-swatch-list {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 100%;
+    gap: 6px;
   }
   
   /* Prevent horizontal scroll on mobile */

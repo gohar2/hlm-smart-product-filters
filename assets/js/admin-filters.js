@@ -65,14 +65,18 @@
    * Type visibility
    * ----------------------------------------------------------------*/
   function updateTypeVisibility($row) {
-    var type     = $row.find('[name*="[type]"]').val() || 'checkbox';
-    var isSwatch = type === 'swatch';
-    var isRange  = type === 'range' || type === 'slider';
-    var isSlider = type === 'slider';
-    var showMore = type === 'checkbox' || type === 'swatch';
-    var isList   = type === 'checkbox';
+    var type       = $row.find('[name*="[type]"]').val() || 'checkbox';
+    var swatchType = $row.find('[name*="[ui][swatch_type]"]').val() || 'color';
+    var isSwatch   = type === 'swatch';
+    var isRange    = type === 'range' || type === 'slider';
+    var isSlider   = type === 'slider';
+    var showMore   = type === 'checkbox' || type === 'swatch';
+    var isList     = type === 'checkbox';
+    // Swatch editor only needed for color/image, text uses term name automatically
+    var needsEditor = isSwatch && swatchType !== 'text';
 
     $row.find('.hlm-swatch-only').toggleClass('is-hidden', !isSwatch);
+    $row.find('.hlm-edit-swatch').toggleClass('is-hidden', !needsEditor);
     $row.find('.hlm-show-more-only').toggleClass('is-hidden', !showMore);
     $row.find('.hlm-list-only').toggleClass('is-hidden', !isList);
     $row.find('.hlm-range-only').toggleClass('is-hidden', !isRange);
@@ -742,7 +746,11 @@
     });
 
     // Swatch type change -> preview update
-    $(document).on('change', '[name*="[ui][swatch_type]"]', function () { renderPreview(); });
+    $(document).on('change', '[name*="[ui][swatch_type]"]', function () {
+      var $row = $(this).closest('.hlm-filter-row');
+      updateTypeVisibility($row);
+      renderPreview();
+    });
 
     // Select all / Clear all
     $(document).on('click', '.hlm-select-all', function (e) {
