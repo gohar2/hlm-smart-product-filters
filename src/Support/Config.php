@@ -42,6 +42,11 @@ final class Config
                 'auto_on_tags' => true,
                 'product_render_mode' => 'woocommerce',
                 'elementor_template_id' => 0,
+                'global_exclusions' => [
+                    'categories' => [],
+                    'tags'       => [],
+                    'shop'       => false,
+                ],
                 'ui' => [
                     'accent_color' => '#0f766e',
                     'background_color' => '#ffffff',
@@ -97,6 +102,17 @@ final class Config
                 'auto_on_tags' => array_key_exists('auto_on_tags', $global) ? $this->to_bool($global['auto_on_tags']) : $defaults['global']['auto_on_tags'],
                 'product_render_mode' => $this->sanitize_enum($global['product_render_mode'] ?? $defaults['global']['product_render_mode'], ['woocommerce', 'elementor']),
                 'elementor_template_id' => $this->to_int($global['elementor_template_id'] ?? $defaults['global']['elementor_template_id'], 0),
+                'global_exclusions' => [
+                    'categories' => $this->sanitize_id_list(
+                        $global['global_exclusions']['categories'] ?? $defaults['global']['global_exclusions']['categories']
+                    ),
+                    'tags' => $this->sanitize_id_list(
+                        $global['global_exclusions']['tags'] ?? $defaults['global']['global_exclusions']['tags']
+                    ),
+                    'shop' => $this->to_bool(
+                        $global['global_exclusions']['shop'] ?? $defaults['global']['global_exclusions']['shop']
+                    ),
+                ],
                 'ui' => [
                     'accent_color' => $this->sanitize_color($global['ui']['accent_color'] ?? $defaults['global']['ui']['accent_color']),
                     'background_color' => $this->sanitize_color($global['ui']['background_color'] ?? $defaults['global']['ui']['background_color']),

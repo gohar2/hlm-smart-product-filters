@@ -35,12 +35,41 @@ final class AutoInjector
             return;
         }
 
+        // Check global page exclusions before hooking
+        $exclusions = $config['global']['global_exclusions'] ?? [];
+        if ($this->is_globally_excluded($exclusions)) {
+            return;
+        }
+
         $hook = $config['global']['auto_hook'] ?? 'woocommerce_before_shop_loop';
         if ($hook === '') {
             $hook = 'woocommerce_before_shop_loop';
         }
 
         add_action($hook, [$this, 'render']);
+    }
+
+    private function is_globally_excluded(array $exclusions): bool
+    {
+        if (!empty($exclusions['shop']) && function_exists('is_shop') && is_shop()) {
+            return true;
+        }
+
+        $queried = get_queried_object();
+        if ($queried && isset($queried->term_id, $queried->taxonomy)) {
+            if ($queried->taxonomy === 'product_cat' && !empty($exclusions['categories']) && is_array($exclusions['categories'])) {
+                if (in_array((int) $queried->term_id, array_map('intval', $exclusions['categories']), true)) {
+                    return true;
+                }
+            }
+            if ($queried->taxonomy === 'product_tag' && !empty($exclusions['tags']) && is_array($exclusions['tags'])) {
+                if (in_array((int) $queried->term_id, array_map('intval', $exclusions['tags']), true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function render(): void

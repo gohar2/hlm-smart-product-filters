@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HLM Smart Product Filters — User Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #1a3d5c;
+    --brand-light: #2a6496;
+    --accent: #3b82f6;
+    --accent-soft: #dbeafe;
+    --accent-glow: #60a5fa;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-alt: #f1f5f9;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --tip-bg: #ecfdf5;
+    --tip-border: #10b981;
+    --tip-text: #065f46;
+    --warn-bg: #fffbeb;
+    --warn-border: #f59e0b;
+    --warn-text: #78350f;
+    --note-bg: #eff6ff;
+    --note-border: #3b82f6;
+    --note-text: #1e40af;
+    --code-bg: #f1f5f9;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.06);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,.08);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.7;
+    font-size: 15.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0f2b44 0%, #1a3d5c 40%, #1e4d6e 70%, #1a3d5c 100%);
+    color: white;
+    padding: 80px 40px 70px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 20% 50%, rgba(59,130,246,.12) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 350px at 80% 30%, rgba(99,179,237,.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.15);
+    padding: 5px 16px;
+    border-radius: 50px;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--accent-glow); }
+  .hero p {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,.65);
+    max-width: 520px;
+    margin: 0 auto;
+    font-weight: 300;
+  }
+  .hero-version {
+    margin-top: 28px;
+    font-size: 13px;
+    color: rgba(255,255,255,.35);
+    font-weight: 400;
+  }
+
+  /* ── LAYOUT ── */
+  .page-wrap {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 0;
+  }
+
+  /* ── SIDEBAR NAV ── */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 0 40px 24px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .sidebar-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0 12px;
+    margin-bottom: 12px;
+  }
+  .sidebar a {
+    display: block;
+    padding: 7px 12px;
+    margin-right: 12px;
+    font-size: 13.5px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: all .15s;
+    line-height: 1.5;
+  }
+  .sidebar a:hover {
+    color: var(--brand);
+    background: var(--accent-soft);
+  }
+  .sidebar a.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 500;
+  }
+  .sidebar .sub-link {
+    padding-left: 28px;
+    font-size: 12.8px;
+    color: var(--text-muted);
+  }
+  .sidebar .sub-link:hover { color: var(--text-secondary); }
+
+  /* ── MAIN CONTENT ── */
+  .content {
+    padding: 48px 56px 100px;
+    min-width: 0;
+  }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 56px; }
+  .section + .section { border-top: 1px solid var(--border-light); padding-top: 48px; }
+
+  h2 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--brand);
+    margin-bottom: 8px;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+  }
+  h2 .section-num {
+    color: var(--accent);
+    font-weight: 400;
+    margin-right: 6px;
+  }
+  .section > .section-desc {
+    color: var(--text-secondary);
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 32px 0 10px;
+    line-height: 1.35;
+  }
+
+  h4 {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 24px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  p { margin-bottom: 14px; }
+  p:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 600; color: var(--text); }
+
+  /* ── TABLES ── */
+  .table-wrap {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin: 16px 0 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    background: var(--brand);
+    color: white;
+    font-weight: 500;
+    font-size: 12.5px;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    padding: 11px 16px;
+    text-align: left;
+  }
+  tbody td {
+    padding: 11px 16px;
+    border-top: 1px solid var(--border-light);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  tbody tr:nth-child(even) { background: var(--surface-alt); }
+  tbody tr:hover { background: var(--accent-soft); }
+  td:first-child { font-weight: 500; white-space: nowrap; color: var(--text); }
+  td:first-child code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    display: flex;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: var(--radius-sm);
+    margin: 16px 0 20px;
+    font-size: 14px;
+    line-height: 1.65;
+    border-left: 3.5px solid;
+  }
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout-tip { background: var(--tip-bg); border-color: var(--tip-border); color: var(--tip-text); }
+  .callout-warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+  .callout-note { background: var(--note-bg); border-color: var(--note-border); color: var(--note-text); }
+  .callout strong { color: inherit; }
+
+  /* ── LISTS ── */
+  ol, ul {
+    margin: 10px 0 18px;
+    padding-left: 24px;
+  }
+  li {
+    margin-bottom: 6px;
+    line-height: 1.65;
+  }
+  li::marker { color: var(--accent); font-weight: 600; }
+
+  /* ── CODE ── */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--code-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--brand);
+  }
+  .shortcode-display {
+    display: inline-block;
+    background: var(--brand);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14.5px;
+    font-weight: 500;
+    padding: 10px 22px;
+    border-radius: var(--radius-sm);
+    margin: 10px 0 16px;
+    letter-spacing: .3px;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ── FILTER TYPE CARDS ── */
+  .type-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 20px 0 28px;
+  }
+  .type-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    transition: all .2s;
+    box-shadow: var(--shadow-sm);
+  }
+  .type-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+    transform: translateY(-1px);
+  }
+  .type-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .type-card-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .type-card h4 {
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .type-card p {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+  }
+  .type-card .best-for {
+    font-size: 12.5px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── VISIBILITY MODE TABLE ── */
+  .mode-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 16px 0 24px;
+  }
+  .mode-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-card h4 {
+    margin: 0 0 6px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 15px;
+    color: var(--brand);
+  }
+  .mode-card p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+  /* ── QUICK REFERENCE ── */
+  .qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .qr-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    transition: all .15s;
+  }
+  .qr-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .qr-label {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--text);
+    min-width: 0;
+  }
+  .qr-value {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  /* ── STEP LISTS ── */
+  .steps { counter-reset: step; list-style: none; padding-left: 0; margin: 14px 0 20px; }
+  .steps li {
+    counter-increment: step;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .steps li::before {
+    content: counter(step);
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 12.5px;
+    border-radius: 50%;
+    margin-top: 1px;
+  }
+
+  /* ── QUICK LINK CARDS ── */
+  .qr-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .qr-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    text-decoration: none;
+    transition: all .2s;
+    box-shadow: var(--shadow-sm);
+  }
+  .qr-link:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+    transform: translateY(-2px);
+  }
+  .qr-link-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .qr-link-icon.frontend {
+    background: #ecfdf5;
+    color: #10b981;
+  }
+  .qr-link-icon.admin {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .qr-link-body {
+    min-width: 0;
+  }
+  .qr-link-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 2px;
+    line-height: 1.35;
+  }
+  .qr-link-url {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+  .qr-link-badge {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 50px;
+    margin-top: 6px;
+  }
+  .qr-link-badge.frontend {
+    background: #ecfdf5;
+    color: #059669;
+  }
+  .qr-link-badge.admin {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .qr-links-heading {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 28px 0 4px;
+  }
+  .qr-links-heading:first-of-type {
+    margin-top: 0;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 32px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .page-wrap { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .content { padding: 32px 24px 80px; }
+    .mode-cards { grid-template-columns: 1fr; }
+    .type-cards { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    .sidebar { display: none; }
+    .page-wrap { grid-template-columns: 1fr; }
+    .hero { padding: 40px 20px; }
+    .content { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<header class="hero">
+  <div class="hero-badge">User Guide</div>
+  <h1>HLM Smart <span>Product Filters</span></h1>
+  <p>Complete setup and configuration reference for WooCommerce store owners.</p>
+  <div class="hero-version">Version 0.4.11</div>
+</header>
+
+<!-- ═══ MAIN LAYOUT ═══ -->
+<div class="page-wrap">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-label">Contents</div>
+  <a href="#getting-started">Getting Started</a>
+  <a href="#settings">Settings</a>
+  <a href="#settings-general" class="sub-link">General Tab</a>
+  <a href="#settings-appearance" class="sub-link">Appearance Tab</a>
+  <a href="#building-filters">Building Filters</a>
+  <a href="#filter-types">Filter Types Explained</a>
+  <a href="#swatches">Working with Swatches</a>
+  <a href="#visibility">Controlling Visibility</a>
+  <a href="#excluding-terms">Excluding Terms</a>
+  <a href="#adding-filters">Adding Filters to Pages</a>
+  <a href="#import-export">Import &amp; Export</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="#quick-reference">Quick Reference</a>
+  <a href="#quick-links">Quick Links</a>
+</nav>
+
+<!-- ── CONTENT ── -->
+<main class="content">
+
+  <!-- ═══ 1. GETTING STARTED ═══ -->
+  <section class="section" id="getting-started">
+    <h2><span class="section-num">01</span> Getting Started</h2>
+    <p class="section-desc">Install, activate, and find your way around the plugin.</p>
+
+    <p>After installing and activating the plugin, a new <strong>HLM Product Filters</strong> menu item appears in your WordPress admin sidebar. It contains two pages:</p>
+    <ul>
+      <li><strong>Settings</strong> — Global options that apply to all filters across your store.</li>
+      <li><strong>Filter Builder</strong> — Where you create, configure, and manage individual filters.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div><strong>Quick Start:</strong> The fastest way to get up and running is to load a Quick Start Template from the Filter Builder page. See <a href="#building-filters">Building Filters</a> below.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 2. SETTINGS ═══ -->
+  <section class="section" id="settings">
+    <h2><span class="section-num">02</span> Settings</h2>
+    <p class="section-desc">Navigate to <strong>HLM Product Filters › Settings</strong> in your admin menu.</p>
+
+    <h3 id="settings-general">General Tab</h3>
+
+    <h4>Performance &amp; Behavior</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Enable caching</td><td>Speeds up your store by temporarily saving filter data. Recommended to keep enabled.</td></tr>
+          <tr><td>Cache TTL (seconds)</td><td>How long cached data is kept before refreshing. Default is 300 (5 minutes). Increase if products don't change frequently.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Product Display</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Products per page</td><td>Number of products shown per page. Default is 12.</td></tr>
+          <tr><td>Default sort</td><td>Default product order. Default is "menu_order."</td></tr>
+          <tr><td>Enable Sort By</td><td>Shows a "Sort by" dropdown so customers can reorder results by price, popularity, rating, or date.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Filter Behavior</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Enable Apply button</td><td>When on, customers must click "Apply" to see results. When off, filters apply immediately on selection.</td></tr>
+          <tr><td>Enable counts</td><td>Shows matching product counts next to each option (e.g., "Red (12)").</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Auto Injection</h4>
+    <p>Automatically display filters on shop pages without placing a shortcode.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Render mode</td><td><strong>Shortcode only</strong> (manual), <strong>Auto inject only</strong> (automatic), or <strong>Shortcode + auto inject</strong> (both).</td></tr>
+          <tr><td>Auto inject hook</td><td>WordPress hook where filters appear. Default: <code>woocommerce_before_shop_loop</code>. Change only if needed.</td></tr>
+          <tr><td>Auto inject on shop</td><td>Show filters on the main Shop page automatically.</td></tr>
+          <tr><td>Auto inject on category archives</td><td>Show filters on product category pages.</td></tr>
+          <tr><td>Auto inject on tag archives</td><td>Show filters on product tag pages.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Debug</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Debug mode</td><td>Enables extra logging for troubleshooting. Keep off unless investigating an issue.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Appearance Tab -->
+    <h3 id="settings-appearance">Appearance Tab</h3>
+
+    <h4>Layout &amp; Spacing</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>Corner radius</td><td>How rounded the filter panel edges appear.</td><td><code>10px</code></td></tr>
+          <tr><td>Vertical spacing</td><td>Space between filter elements.</td><td><code>12px</code></td></tr>
+          <tr><td>Density</td><td><strong>Compact</strong> (tight), <strong>Comfy</strong> (balanced — recommended), or <strong>Airy</strong> (spacious).</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Style</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Panel header style</td><td><strong>Pill</strong> (rounded background), <strong>Underline</strong> (bottom line), or <strong>Plain</strong> (simple text).</td></tr>
+          <tr><td>Default list layout</td><td><strong>Stacked</strong> (one per line) or <strong>Inline</strong> (side by side).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Typography</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td>Font scale (%)</td><td>Adjust text size. 100 = normal.</td><td><code>110</code> for 10% larger</td></tr>
+          <tr><td>Font family</td><td>Change the font. Use <code>inherit</code> to match your theme.</td><td><code>inherit</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Colors</h4>
+    <p>All color settings use a color picker. Click the swatch to choose a color.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Controls</th></tr></thead>
+        <tbody>
+          <tr><td>Accent color</td><td>Buttons, links, selected items, and interactive highlights.</td></tr>
+          <tr><td>Background color</td><td>Background of filter panels.</td></tr>
+          <tr><td>Text color</td><td>Main label and option text.</td></tr>
+          <tr><td>Border color</td><td>Borders around panels and elements.</td></tr>
+          <tr><td>Muted text color</td><td>Secondary text like product counts and hints.</td></tr>
+          <tr><td>Panel gradient</td><td>Subtle gradient effect for panel backgrounds.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 3. BUILDING FILTERS ═══ -->
+  <section class="section" id="building-filters">
+    <h2><span class="section-num">03</span> Building Filters</h2>
+    <p class="section-desc">Navigate to <strong>HLM Product Filters › Filter Builder</strong> in your admin menu.</p>
+
+    <h3>Using a Quick Start Template</h3>
+    <p>The easiest way to get started:</p>
+    <ol class="steps">
+      <li>At the top of the Filter Builder page, locate the <strong>Quick Start Templates</strong> section.</li>
+      <li>Click on a template card (e.g., <strong>Comprehensive Shop</strong>).</li>
+      <li>A ready-to-use set of filters is created for your store.</li>
+      <li>Click <strong>Save Filters</strong> to keep your configuration.</li>
+    </ol>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Heads up:</strong> Loading a template replaces any existing filters. Export your current setup first if you want a backup.</div>
+    </div>
+
+    <h3>Creating a Filter from Scratch</h3>
+    <ol class="steps">
+      <li>Click the <strong>Add Filter</strong> button.</li>
+      <li>Fill in the settings across the available tabs (detailed below).</li>
+      <li>Click <strong>Save Filters</strong> when finished.</li>
+    </ol>
+
+    <h3>Managing Filters</h3>
+    <ul>
+      <li><strong>Reorder</strong> — Drag the handle icon on the left to rearrange display order.</li>
+      <li><strong>Expand / Collapse</strong> — Click a filter header to toggle its settings.</li>
+      <li><strong>Expand All / Collapse All</strong> — Manage all panels at once.</li>
+      <li><strong>Remove</strong> — Click the red "Remove" link to delete a filter.</li>
+    </ul>
+
+    <h3>Filter Settings Tabs</h3>
+    <p>Each filter has five configuration tabs:</p>
+
+    <h4>General Tab</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Label</td><td>The name customers see (e.g., "Color," "Size," "Price Range"). Required.</td></tr>
+          <tr><td>Source</td><td>Where the filter gets its data: product categories, tags, attributes (Color, Size, etc.), or meta fields (_price).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Common source choices:</strong> Product categories, Product tags, Color / Size / Brand (any attribute), or Meta: _price (for price-based filtering).</p>
+
+    <h4>Behavior Tab</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Allow multi-select</td><td>Lets customers select more than one option at a time.</td></tr>
+          <tr><td>Operator</td><td><strong>OR</strong> = show products matching <em>any</em> selection. <strong>AND</strong> = show products matching <em>all</em> selections.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>UI Tab</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Display type</td><td>How the filter looks. See <a href="#filter-types">Filter Types Explained</a>.</td></tr>
+          <tr><td>List layout</td><td>For checkbox/swatch filters: <strong>Stacked</strong> or <strong>Inline</strong>.</td></tr>
+          <tr><td>Swatch type</td><td>For swatch filters only: Color, Image URL, or Text.</td></tr>
+          <tr><td>Show more threshold</td><td>Hide options after this many items with a "Show more" button. 0 = show all.</td></tr>
+          <tr><td>Slider step</td><td>Increment between values (e.g., 1 for whole numbers, 0.01 for decimals).</td></tr>
+          <tr><td>Range prefix</td><td>Symbol before the value (e.g., "$").</td></tr>
+          <tr><td>Range suffix</td><td>Symbol after the value (e.g., "kg").</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Visibility Tab</h4>
+    <p>Controls where the filter appears. See <a href="#visibility">Controlling Visibility</a>.</p>
+
+    <h4>Advanced Tab</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>ID</td><td>Unique internal identifier, auto-generated from the label.</td></tr>
+          <tr><td>Key</td><td>URL parameter name. Keep it short (e.g., "color," "size"). Auto-generated.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>You usually don't need to change the Advanced settings unless you have a specific technical requirement.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 4. FILTER TYPES ═══ -->
+  <section class="section" id="filter-types">
+    <h2><span class="section-num">04</span> Filter Types Explained</h2>
+    <p class="section-desc">Choose the right display type for each filter.</p>
+
+    <div class="type-cards">
+      <div class="type-card">
+        <div class="type-card-header">
+          <div class="type-card-icon">☑</div>
+          <h4>Checkboxes (List)</h4>
+        </div>
+        <p>The most common filter type. Shows a list of options with checkboxes.</p>
+        <div class="best-for">Best for: Categories, tags, brands, multi-option attributes.</div>
+      </div>
+      <div class="type-card">
+        <div class="type-card-header">
+          <div class="type-card-icon">▾</div>
+          <h4>Dropdown</h4>
+        </div>
+        <p>A compact select menu. Customers click to expand and choose.</p>
+        <div class="best-for">Best for: Filters with many options where space is limited.</div>
+      </div>
+      <div class="type-card">
+        <div class="type-card-header">
+          <div class="type-card-icon">◆</div>
+          <h4>Swatch</h4>
+        </div>
+        <p>Visual swatches: color squares, image thumbnails, or text chips.</p>
+        <div class="best-for">Best for: Colors, textures, sizes (S/M/L/XL).</div>
+      </div>
+      <div class="type-card">
+        <div class="type-card-header">
+          <div class="type-card-icon">#</div>
+          <h4>Range (Min/Max)</h4>
+        </div>
+        <p>Two number input fields for entering a minimum and maximum value.</p>
+        <div class="best-for">Best for: Price filtering or any numeric attribute.</div>
+      </div>
+      <div class="type-card">
+        <div class="type-card-header">
+          <div class="type-card-icon">⟷</div>
+          <h4>Slider</h4>
+        </div>
+        <p>An interactive slider with two handles for selecting a range visually.</p>
+        <div class="best-for">Best for: Price with a touch-friendly interface.</div>
+      </div>
+    </div>
+
+    <div class="callout callout-note">
+      <span class="callout-icon">ℹ️</span>
+      <div><strong>Note:</strong> Range and Slider filters require a <strong>meta field</strong> data source (e.g., <code>_price</code>) to function.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. SWATCHES ═══ -->
+  <section class="section" id="swatches">
+    <h2><span class="section-num">05</span> Working with Swatches</h2>
+    <p class="section-desc">Display visual elements instead of plain text labels.</p>
+
+    <h3>Color Swatches</h3>
+    <p>Displays colored squares for each filter option.</p>
+    <ol class="steps">
+      <li>Set the filter <strong>Display type</strong> to <strong>Swatch</strong>.</li>
+      <li>Set the <strong>Swatch type</strong> to <strong>Color</strong>.</li>
+      <li>Click the <strong>Swatches</strong> button in the filter header to open the Swatch Editor.</li>
+      <li>For each term, use the color picker or type a hex code (e.g., <code>#ff0000</code> for red).</li>
+      <li>Click <strong>Save</strong> in the Swatch Editor.</li>
+    </ol>
+    <p><strong>Swatch Editor features:</strong></p>
+    <ul>
+      <li><strong>Search box</strong> — Type to find a specific term. Matches are highlighted and sorted to the top.</li>
+      <li><strong>Populate Predefined Colors</strong> — Auto-fills colors from a built-in database, matching by name (e.g., "Red" → <code>#ff0000</code>).</li>
+    </ul>
+
+    <h3>Image Swatches</h3>
+    <p>Displays small image thumbnails for each option.</p>
+    <ol class="steps">
+      <li>Set <strong>Display type</strong> to <strong>Swatch</strong>.</li>
+      <li>Set <strong>Swatch type</strong> to <strong>Image URL</strong>.</li>
+      <li>Open the <strong>Swatch Editor</strong>.</li>
+      <li>Paste an image URL for each term (e.g., <code>https://yoursite.com/wp-content/uploads/texture.jpg</code>).</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+
+    <h3>Text Swatches</h3>
+    <p>Displays text labels as styled chips — the simplest swatch type.</p>
+    <ol class="steps">
+      <li>Set <strong>Display type</strong> to <strong>Swatch</strong>.</li>
+      <li>Set <strong>Swatch type</strong> to <strong>Text</strong>.</li>
+      <li>That's it! No Swatch Editor needed.</li>
+    </ol>
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>Text swatches automatically use the term name as the label. If your Size attribute has "S," "M," "L," and "XL," these appear as styled chips on the frontend.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 6. VISIBILITY ═══ -->
+  <section class="section" id="visibility">
+    <h2><span class="section-num">06</span> Controlling Where Filters Appear</h2>
+    <p class="section-desc">The Visibility tab on each filter controls exactly where it shows up.</p>
+
+    <h3>Hide Empty Terms</h3>
+    <p>Enable this to hide filter options with no matching products. If no products are tagged "Vintage," that option won't appear.</p>
+
+    <h3>Category Visibility</h3>
+    <p>Control which product category pages display this filter:</p>
+    <div class="mode-cards">
+      <div class="mode-card">
+        <h4>All</h4>
+        <p>Shows on every page. This is the default.</p>
+      </div>
+      <div class="mode-card">
+        <h4>Include</h4>
+        <p>Shows <strong>only</strong> on categories you select.</p>
+      </div>
+      <div class="mode-card">
+        <h4>Exclude</h4>
+        <p>Shows everywhere <strong>except</strong> categories you select.</p>
+      </div>
+    </div>
+    <p>When using Include or Exclude mode, a category list appears for selection. Enable <strong>Include child categories</strong> to extend the rule to all subcategories.</p>
+
+    <h3>Tag Visibility</h3>
+    <p>Works identically to Category Visibility, but applies to product tag pages.</p>
+  </section>
+
+  <!-- ═══ 7. EXCLUDING TERMS ═══ -->
+  <section class="section" id="excluding-terms">
+    <h2><span class="section-num">07</span> Excluding Specific Terms</h2>
+    <p class="section-desc">Prevent specific terms from appearing in a filter.</p>
+
+    <p>For example, if you have a "Color" filter but never want "Discontinued Gray" to show up:</p>
+    <ol class="steps">
+      <li>Open the filter's <strong>Visibility</strong> tab.</li>
+      <li>Find the <strong>Exclude specific terms</strong> section.</li>
+      <li>The term list loads when you click the Visibility tab.</li>
+      <li>Click individual terms to select them (click again to deselect).</li>
+      <li>Use <strong>Select all</strong> or <strong>Clear</strong> buttons for quick actions.</li>
+      <li>Click <strong>Save Filters</strong>.</li>
+    </ol>
+    <p>Excluded terms will no longer appear in that filter on the frontend.</p>
+  </section>
+
+  <!-- ═══ 8. ADDING FILTERS ═══ -->
+  <section class="section" id="adding-filters">
+    <h2><span class="section-num">08</span> Adding Filters to Your Pages</h2>
+    <p class="section-desc">Two methods to display filters on your store.</p>
+
+    <h3>Method 1: Shortcode (Recommended)</h3>
+    <p>Place this shortcode anywhere you want filters to appear:</p>
+    <div class="shortcode-display">[hlm_smart_product_filters]</div>
+    <p>Works in pages (WordPress editor), widget areas, theme template files, or page builder elements like Elementor and WPBakery.</p>
+
+    <h3>Method 2: Auto Injection</h3>
+    <p>Automatically add filters without editing templates:</p>
+    <ol class="steps">
+      <li>Go to <strong>Settings › General Tab</strong>.</li>
+      <li>Set <strong>Render mode</strong> to "Auto inject only" or "Shortcode + auto inject."</li>
+      <li>Enable the relevant auto inject checkboxes (Shop, Category archives, Tag archives).</li>
+      <li>Save your settings.</li>
+    </ol>
+
+    <h3>How Filtering Works for Customers</h3>
+    <ol class="steps">
+      <li>Customers see the filter panel on the shop page.</li>
+      <li>They select options — check boxes, pick colors, slide ranges, etc.</li>
+      <li>The page updates to show only matching products.</li>
+      <li>Active filters are visually highlighted so customers know what's applied.</li>
+      <li>A <strong>Clear all</strong> link removes all active filters at once.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>If Sort By is enabled, customers can also reorder results by price, popularity, rating, newest, or title.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 9. IMPORT & EXPORT ═══ -->
+  <section class="section" id="import-export">
+    <h2><span class="section-num">09</span> Import &amp; Export</h2>
+    <p class="section-desc">Navigate to <strong>HLM Product Filters › Import / Export</strong>.</p>
+
+    <h3>Exporting</h3>
+    <ol class="steps">
+      <li>Click <strong>Download as JSON</strong> to save a backup file.</li>
+      <li>Or click <strong>Copy to Clipboard</strong> to copy the configuration text.</li>
+    </ol>
+    <p>This exports all settings and filter definitions as a single JSON file.</p>
+
+    <h3>Importing</h3>
+    <ol class="steps">
+      <li>Click <strong>Choose File</strong> and select a previously exported <code>.json</code> file.</li>
+      <li>Or paste JSON text directly into the text area.</li>
+      <li>Click the import button.</li>
+      <li>Confirm when prompted.</li>
+    </ol>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Warning:</strong> Importing replaces all current settings and filters. Always export first as a backup.</div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>Click <strong>Download Sample JSON</strong> to see the expected format — useful for understanding the structure or manually editing configuration files.</div>
+    </div>
+  </section>
+
+  <!-- ═══ 10. TROUBLESHOOTING ═══ -->
+  <section class="section" id="troubleshooting">
+    <h2><span class="section-num">10</span> Troubleshooting</h2>
+    <p class="section-desc">Common issues and how to resolve them.</p>
+
+    <h3>Filters Are Not Showing on My Shop Page</h3>
+    <ol class="steps">
+      <li>Verify you've created at least one filter in the Filter Builder.</li>
+      <li>Check <strong>Render mode</strong> in Settings — should be "Shortcode only" or "Shortcode + auto inject."</li>
+      <li>If using a shortcode, confirm <code>[hlm_smart_product_filters]</code> is on the correct page.</li>
+      <li>If using auto inject, verify the relevant "Auto inject on…" checkboxes are enabled.</li>
+    </ol>
+
+    <h3>Some Filter Options Are Missing</h3>
+    <ul>
+      <li><strong>Hide empty terms</strong> enabled? Options with no products are hidden automatically.</li>
+      <li><strong>Exclude specific terms</strong> — Verify the missing options haven't been manually excluded.</li>
+      <li><strong>Show more threshold</strong> — Options beyond this number are hidden behind a "Show more" button.</li>
+    </ul>
+
+    <h3>Swatch Colors Are Not Showing</h3>
+    <ol class="steps">
+      <li>Confirm <strong>Display type</strong> is Swatch and <strong>Swatch type</strong> is Color.</li>
+      <li>Open the Swatch Editor via the "Swatches" button.</li>
+      <li>Ensure each term has a color assigned.</li>
+      <li>Try <strong>Populate Predefined Colors</strong> to auto-fill common names.</li>
+      <li>Save in the Swatch Editor, then <strong>Save Filters</strong> on the main page.</li>
+    </ol>
+
+    <h3>Filters Are Slow to Load</h3>
+    <ol class="steps">
+      <li>Turn on <strong>Enable caching</strong> in Settings.</li>
+      <li>Increase <strong>Cache TTL</strong> if products don't change often (e.g., 3600 for 1 hour).</li>
+    </ol>
+
+    <h3>Products Are Not Filtering Correctly</h3>
+    <ol class="steps">
+      <li>Verify <strong>Source</strong> is set to the correct attribute or taxonomy.</li>
+      <li>Check <strong>Operator</strong>: OR = any match, AND = all must match.</li>
+      <li>Confirm <strong>Allow multi-select</strong> is enabled if needed.</li>
+      <li>Enable <strong>Debug mode</strong> in Settings to log operations for investigation.</li>
+    </ol>
+
+    <h3>Excluded Terms Still Appear</h3>
+    <ol class="steps">
+      <li>Ensure you clicked <strong>Save Filters</strong> after selecting terms to exclude.</li>
+      <li>Reload and check the Visibility tab — excluded terms should appear as selected.</li>
+      <li>Clear your browser cache and any site caching plugins.</li>
+    </ol>
+  </section>
+
+  <!-- ═══ 11. QUICK REFERENCE ═══ -->
+  <section class="section" id="quick-reference">
+    <h2><span class="section-num">11</span> Quick Reference</h2>
+    <p class="section-desc">Common tasks at a glance.</p>
+
+    <div class="qr-grid">
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Add filters to a page</div>
+          <div class="qr-value">Use the <code>[hlm_smart_product_filters]</code> shortcode.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Show color swatches</div>
+          <div class="qr-value">Type → Swatch, Swatch type → Color, then configure in the Swatch Editor.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Show size labels (S, M, L)</div>
+          <div class="qr-value">Type → Swatch, Swatch type → Text. Uses term names automatically.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Filter by price</div>
+          <div class="qr-value">Type → Range or Slider, Source → Meta: _price.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Hide a filter on certain pages</div>
+          <div class="qr-value">Use Category/Tag visibility in the Visibility tab.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Remove a term from a filter</div>
+          <div class="qr-value">Use Exclude specific terms in the Visibility tab.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Back up configuration</div>
+          <div class="qr-value">Use Import/Export to download a JSON file.</div>
+        </div>
+      </div>
+      <div class="qr-item">
+        <div>
+          <div class="qr-label">Start fresh quickly</div>
+          <div class="qr-value">Load a Quick Start Template from the Filter Builder.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 12. QUICK LINKS ═══ -->
+  <section class="section" id="quick-links">
+    <h2><span class="section-num">12</span> Quick Links</h2>
+    <p class="section-desc">Jump directly to key pages on your store and admin dashboard.</p>
+
+    <p class="qr-links-heading">Frontend Pages</p>
+    <div class="qr-links-grid">
+      <a href="https://staging.iheartdogs.com/product-category/apparel/" target="_blank" class="qr-link">
+        <div class="qr-link-icon frontend">&#x1f3f7;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Product Category</div>
+          <div class="qr-link-url">/product-category/apparel/</div>
+          <span class="qr-link-badge frontend">Frontend</span>
+        </div>
+      </a>
+      <a href="https://staging.iheartdogs.com/product-tag/memorial-jewelry/" target="_blank" class="qr-link">
+        <div class="qr-link-icon frontend">&#x1f50d;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Product Tag</div>
+          <div class="qr-link-url">/product-tag/memorial-jewelry/</div>
+          <span class="qr-link-badge frontend">Frontend</span>
+        </div>
+      </a>
+      <a href="https://staging.iheartdogs.com/theme/winter-2023/" target="_blank" class="qr-link">
+        <div class="qr-link-icon frontend">&#x1f3a8;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Theme</div>
+          <div class="qr-link-url">/theme/winter-2023/</div>
+          <span class="qr-link-badge frontend">Frontend</span>
+        </div>
+      </a>
+    </div>
+
+    <p class="qr-links-heading">Admin Pages</p>
+    <div class="qr-links-grid">
+      <a href="https://staging.iheartdogs.com/wp-admin/admin.php?page=theme-tag-assigner" target="_blank" class="qr-link">
+        <div class="qr-link-icon admin">&#x2699;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Tag Theme Assigner</div>
+          <div class="qr-link-url">wp-admin › theme-tag-assigner</div>
+          <span class="qr-link-badge admin">Admin</span>
+        </div>
+      </a>
+      <a href="https://staging.iheartdogs.com/wp-admin/admin.php?page=hlm-product-filters-builder" target="_blank" class="qr-link">
+        <div class="qr-link-icon admin">&#x1f6e0;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Filters Builder</div>
+          <div class="qr-link-url">wp-admin › hlm-product-filters-builder</div>
+          <span class="qr-link-badge admin">Admin</span>
+        </div>
+      </a>
+      <a href="https://staging.iheartdogs.com/wp-admin/admin.php?page=hlm-product-filters" target="_blank" class="qr-link">
+        <div class="qr-link-icon admin">&#x2699;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Filter Settings</div>
+          <div class="qr-link-url">wp-admin › hlm-product-filters</div>
+          <span class="qr-link-badge admin">Admin</span>
+        </div>
+      </a>
+      <a href="https://staging.iheartdogs.com/wp-admin/admin.php?page=hlm-product-filters-import-export" target="_blank" class="qr-link">
+        <div class="qr-link-icon admin">&#x1f4e6;</div>
+        <div class="qr-link-body">
+          <div class="qr-link-title">Import / Export Filters</div>
+          <div class="qr-link-url">wp-admin › hlm-product-filters-import-export</div>
+          <span class="qr-link-badge admin">Admin</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="callout callout-note" style="margin-top: 24px;">
+      <span class="callout-icon">&#x2139;&#xfe0f;</span>
+      <div>All links point to the <strong>staging environment</strong>. Make sure you are logged in to access admin pages.</div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  HLM Smart Product Filters v0.4.11
+</footer>
+
+<!-- ── Sidebar active link tracking ── -->
+<script>
+  const sections = document.querySelectorAll('.section[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-80px 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

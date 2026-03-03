@@ -2,12 +2,22 @@
 
 namespace HLM\Filters\Admin;
 
+use HLM\Filters\Support\Config;
+
 final class AdminAjax
 {
+    private Config $config;
+
+    public function __construct(Config $config)
+    {
+        $this->config = $config;
+    }
+
     public function register(): void
     {
         add_action('wp_ajax_hlm_get_terms', [$this, 'get_terms']);
         add_action('wp_ajax_hlm_get_color_codes', [$this, 'get_color_codes']);
+        add_action('wp_ajax_hlm_save_global_exclusions', [$this, 'save_global_exclusions']);
     }
 
     public function get_terms(): void
@@ -75,5 +85,35 @@ final class AdminAjax
         }
 
         wp_send_json_success($data);
+    }
+
+    public function save_global_exclusions(): void
+    {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'hlm-smart-product-filters')], 403);
+        }
+
+        check_ajax_referer('hlm_filters_admin_nonce', 'nonce');
+
+        $categories = isset($_POST['categories']) && is_array($_POST['categories'])
+            ? array_values(array_filter(array_map('absint', $_POST['categories'])))
+            : [];
+        $tags = isset($_POST['tags']) && is_array($_POST['tags'])
+            ? array_values(array_filter(array_map('absint', $_POST['tags'])))
+            : [];
+        $shop = !empty($_POST['shop']);
+
+        $current = $this->config->get();
+        $current['global']['global_exclusions'] = [
+            'categories' => $categories,
+            'tags'       => $tags,
+            'shop'       => $shop,
+        ];
+
+        $this->config->update($current);
+
+        wp_send_json_success([
+            'message' => __('Global exclusions saved.', 'hlm-smart-product-filters'),
+        ]);
     }
 }

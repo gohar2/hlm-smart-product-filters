@@ -45,7 +45,7 @@ final class Plugin
             (new SettingsPage($this->config))->register();
             (new FiltersBuilderPage($this->config))->register();
             (new ImportExportPage($this->config))->register();
-            (new AdminAjax())->register();
+            (new AdminAjax($this->config))->register();
         }
 
         // Registers the Shortcode rendering and Assets are being enqueued in this class

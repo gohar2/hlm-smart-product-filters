@@ -972,5 +972,206 @@
     });
 
     renderPreview();
+
+    /* ------------------------------------------------------------------
+     * Global Page Exclusions
+     * ----------------------------------------------------------------*/
+    (function initGlobalExclusions() {
+      var $dropdown = $('#hlm-exclusion-dropdown');
+      var $search   = $('#hlm-exclusion-search');
+      var $panel    = $('#hlm-exclusion-panel');
+      var $chipList = $('#hlm-exclusion-chip-list');
+      var $emptyMsg = $('#hlm-exclusion-empty-msg');
+      var $saveBtn  = $('#hlm-save-global-exclusions');
+      var $status   = $('#hlm-exclusion-status');
+
+      if (!$dropdown.length) { return; }
+
+      var categories = HLMFiltersAdmin.categories || {};
+      var tags       = HLMFiltersAdmin.tags || {};
+      var saved      = HLMFiltersAdmin.globalExclusions || { categories: [], tags: [], shop: false };
+
+      // Build selected state from saved data
+      var selected = {};
+      if (saved.shop) { selected['page_shop'] = true; }
+      (saved.categories || []).forEach(function (id) { selected['cat_' + id] = true; });
+      (saved.tags || []).forEach(function (id) { selected['tag_' + id] = true; });
+
+      // Build grouped option data
+      var groups = [];
+      groups.push({ label: 'Pages', items: [{ value: 'page_shop', text: 'Shop Page', type: 'page' }] });
+
+      var catItems = [];
+      $.each(categories, function (id, name) { catItems.push({ value: 'cat_' + id, text: name, type: 'cat' }); });
+      if (catItems.length) { groups.push({ label: 'Categories', items: catItems }); }
+
+      var tagItems = [];
+      $.each(tags, function (id, name) { tagItems.push({ value: 'tag_' + id, text: name, type: 'tag' }); });
+      if (tagItems.length) { groups.push({ label: 'Tags', items: tagItems }); }
+
+      /* --- Render dropdown list --- */
+      function renderPanel(filter) {
+        $panel.empty();
+        filter = (filter || '').toLowerCase().trim();
+        var hasResults = false;
+
+        groups.forEach(function (group) {
+          var matching = group.items.filter(function (item) {
+            return !filter || item.text.toLowerCase().indexOf(filter) !== -1;
+          });
+          if (!matching.length) { return; }
+          hasResults = true;
+
+          var $group = $('<div class="hlm-excl-group"></div>');
+          $group.append('<div class="hlm-excl-group-label">' + group.label + '</div>');
+
+          matching.forEach(function (item) {
+            var isOn = !!selected[item.value];
+            var $opt = $('<div class="hlm-excl-option' + (isOn ? ' is-on' : '') + '" data-value="' + item.value + '" data-type="' + item.type + '"></div>');
+            $opt.append('<span class="hlm-excl-check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>');
+            $opt.append('<span class="hlm-excl-option-text">' + $('<span>').text(item.text).html() + '</span>');
+            $group.append($opt);
+          });
+
+          $panel.append($group);
+        });
+
+        if (!hasResults) {
+          $panel.append('<div class="hlm-excl-no-results">No matches found</div>');
+        }
+      }
+
+      /* --- Toggle option --- */
+      $panel.on('click', '.hlm-excl-option', function (e) {
+        e.stopPropagation();
+        var val = $(this).attr('data-value');
+        if (selected[val]) {
+          delete selected[val];
+          $(this).removeClass('is-on');
+        } else {
+          selected[val] = true;
+          $(this).addClass('is-on');
+        }
+        syncChips();
+      });
+
+      /* --- Open / close dropdown --- */
+      function openPanel() {
+        renderPanel($search.val());
+        $dropdown.addClass('is-open');
+      }
+      function closePanel() {
+        $dropdown.removeClass('is-open');
+      }
+
+      $search.on('focus', openPanel);
+      $search.on('input', function () { renderPanel($search.val()); });
+
+      // Click on trigger arrow opens/closes
+      $('#hlm-exclusion-trigger .hlm-exclusion-trigger-arrow').on('click', function (e) {
+        e.stopPropagation();
+        if ($dropdown.hasClass('is-open')) {
+          closePanel();
+          $search.blur();
+        } else {
+          $search.focus();
+        }
+      });
+
+      // Close on click outside
+      $(document).on('mousedown', function (e) {
+        if (!$(e.target).closest('#hlm-exclusion-dropdown').length) {
+          closePanel();
+        }
+      });
+
+      /* --- Chips --- */
+      function createChip(value, text, type) {
+        var badgeClass = 'hlm-excl-badge--' + type;
+        var badgeText  = type === 'cat' ? 'CAT' : type === 'tag' ? 'TAG' : 'PAGE';
+
+        var $chip = $('<span class="hlm-exclusion-chip" data-value="' + value + '"></span>');
+        $chip.append('<span class="hlm-excl-badge ' + badgeClass + '">' + badgeText + '</span>');
+        $chip.append('<span class="hlm-exclusion-chip-text">' + $('<span>').text(text).html() + '</span>');
+        var $remove = $('<button type="button" class="hlm-exclusion-chip-remove" title="Remove">&times;</button>');
+        $remove.on('click', function () {
+          delete selected[value];
+          // Update dropdown if it's open
+          $panel.find('.hlm-excl-option[data-value="' + value + '"]').removeClass('is-on');
+          syncChips();
+        });
+        $chip.append($remove);
+        return $chip;
+      }
+
+      function syncChips() {
+        $chipList.empty();
+        var keys = Object.keys(selected);
+
+        if (keys.length === 0) {
+          $emptyMsg.show();
+          return;
+        }
+        $emptyMsg.hide();
+
+        keys.forEach(function (val) {
+          var type, label;
+          if (val === 'page_shop') {
+            type = 'page'; label = 'Shop Page';
+          } else {
+            var parts = val.split('_');
+            type = parts[0];
+            var id = parts.slice(1).join('_');
+            label = type === 'cat' ? (categories[id] || 'Category #' + id) : (tags[id] || 'Tag #' + id);
+          }
+          $chipList.append(createChip(val, label, type));
+        });
+      }
+
+      /* --- Parse for AJAX save --- */
+      function parseSelections() {
+        var cats = [], tgs = [], shop = false;
+        Object.keys(selected).forEach(function (val) {
+          if (val === 'page_shop') { shop = true; return; }
+          var parts = val.split('_');
+          var id = parseInt(parts[1], 10);
+          if (parts[0] === 'cat' && id > 0) { cats.push(id); }
+          else if (parts[0] === 'tag' && id > 0) { tgs.push(id); }
+        });
+        return { categories: cats, tags: tgs, shop: shop };
+      }
+
+      // Initial chip render
+      syncChips();
+
+      // AJAX save
+      $saveBtn.on('click', function () {
+        var data = parseSelections();
+        $saveBtn.prop('disabled', true);
+        $status.removeClass('is-success is-error').text('');
+
+        $.post(HLMFiltersAdmin.ajaxUrl, {
+          action:     'hlm_save_global_exclusions',
+          nonce:      HLMFiltersAdmin.nonce,
+          categories: data.categories,
+          tags:       data.tags,
+          shop:       data.shop ? 1 : 0
+        }).done(function (response) {
+          if (response && response.success) {
+            $status.addClass('is-success').text(response.data.message || 'Saved!');
+          } else {
+            var msg = (response && response.data && response.data.message) || 'Save failed.';
+            $status.addClass('is-error').text(msg);
+          }
+        }).fail(function () {
+          $status.addClass('is-error').text('Network error. Please try again.');
+        }).always(function () {
+          $saveBtn.prop('disabled', false);
+          setTimeout(function () {
+            $status.fadeOut(300, function () { $status.text('').css('display', ''); });
+          }, 4000);
+        });
+      });
+    })();
   });
 })(jQuery);

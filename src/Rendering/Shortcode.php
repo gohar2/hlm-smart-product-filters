@@ -37,6 +37,10 @@ final class Shortcode
             'context' => $this->current_context(),
         ];
 
+        if ($this->is_globally_excluded($request['context'])) {
+            return '';
+        }
+
         $config = $this->config->get();
         $mode = $config['global']['render_mode'] ?? 'shortcode';
         if ($mode === 'auto') {
@@ -54,6 +58,10 @@ final class Shortcode
             'sort' => $_GET['orderby'] ?? '',
             'context' => $this->current_context(),
         ];
+
+        if ($this->is_globally_excluded($request['context'])) {
+            return '';
+        }
 
         return $this->render_with_request($request, 'auto');
     }
@@ -293,6 +301,32 @@ final class Shortcode
             return wc_attribute_taxonomy_name($source);
         }
         return $source;
+    }
+
+    private function is_globally_excluded(array $context): bool
+    {
+        $config = $this->config->get();
+        $exclusions = $config['global']['global_exclusions'] ?? [];
+
+        if (!empty($exclusions['shop']) && function_exists('is_shop') && is_shop()) {
+            return true;
+        }
+
+        $category_id = (int) ($context['category_id'] ?? 0);
+        if ($category_id > 0 && !empty($exclusions['categories']) && is_array($exclusions['categories'])) {
+            if (in_array($category_id, array_map('intval', $exclusions['categories']), true)) {
+                return true;
+            }
+        }
+
+        $tag_id = (int) ($context['tag_id'] ?? 0);
+        if ($tag_id > 0 && !empty($exclusions['tags']) && is_array($exclusions['tags'])) {
+            if (in_array($tag_id, array_map('intval', $exclusions['tags']), true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function current_context(): array

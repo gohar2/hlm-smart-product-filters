@@ -44,6 +44,7 @@ final class FiltersBuilderPage
         }
 
         wp_enqueue_script('jquery-ui-sortable');
+
         wp_enqueue_style(
             'hlm-filters-admin',
             HLM_FILTERS_URL . 'assets/css/admin-filters.css',
@@ -59,17 +60,25 @@ final class FiltersBuilderPage
         );
 
         $this->load_data();
+        $config     = $this->config->get();
+        $exclusions = $config['global']['global_exclusions'] ?? [];
         wp_localize_script('hlm-filters-admin', 'HLMFiltersAdmin', [
-            'ajaxUrl'    => admin_url('admin-ajax.php'),
-            'nonce'      => wp_create_nonce('hlm_filters_admin_nonce'),
-            'categories' => $this->categories,
-            'tags'       => $this->tags,
-            'i18n'       => [
-                'confirmRemove'  => __('Remove this filter?', 'hlm-smart-product-filters'),
-                'confirmReplace' => __('This will replace your current filters. Continue?', 'hlm-smart-product-filters'),
-                'validationFail' => __('Please fill in all required fields before saving.', 'hlm-smart-product-filters'),
-                'noSource'       => __('Please set a valid source key first.', 'hlm-smart-product-filters'),
-                'termLoadFail'   => __('Failed to load terms.', 'hlm-smart-product-filters'),
+            'ajaxUrl'          => admin_url('admin-ajax.php'),
+            'nonce'            => wp_create_nonce('hlm_filters_admin_nonce'),
+            'categories'       => $this->categories,
+            'tags'             => $this->tags,
+            'globalExclusions' => [
+                'categories' => array_map('intval', $exclusions['categories'] ?? []),
+                'tags'       => array_map('intval', $exclusions['tags'] ?? []),
+                'shop'       => !empty($exclusions['shop']),
+            ],
+            'i18n'             => [
+                'confirmRemove'        => __('Remove this filter?', 'hlm-smart-product-filters'),
+                'confirmReplace'       => __('This will replace your current filters. Continue?', 'hlm-smart-product-filters'),
+                'validationFail'       => __('Please fill in all required fields before saving.', 'hlm-smart-product-filters'),
+                'noSource'             => __('Please set a valid source key first.', 'hlm-smart-product-filters'),
+                'termLoadFail'         => __('Failed to load terms.', 'hlm-smart-product-filters'),
+                'exclusionPlaceholder' => __('Search categories, tags, or pages...', 'hlm-smart-product-filters'),
             ],
         ]);
     }
@@ -271,6 +280,9 @@ final class FiltersBuilderPage
 
         // Row 1: Template selector (full width)
         $this->render_template_selector();
+
+        // Global page exclusions (full width, outside the main form scope for AJAX save)
+        $this->render_global_exclusions();
 
         // Row 2: Builder (70%) | Live Preview (30%)
         echo '<div class="hlm-builder-layout">';
@@ -897,6 +909,51 @@ final class FiltersBuilderPage
             }
         }
         return $options;
+    }
+
+    private function render_global_exclusions(): void
+    {
+        echo '<div class="hlm-global-exclusions">';
+
+        // Header
+        echo '<div class="hlm-global-exclusions-header">';
+        echo '<div>';
+        echo '<h3><span class="dashicons dashicons-hidden"></span> ' . esc_html__('Global Page Exclusions', 'hlm-smart-product-filters') . '</h3>';
+        echo '<p class="description">' . esc_html__('Select categories, tags, or pages where all filters should be completely hidden.', 'hlm-smart-product-filters') . '</p>';
+        echo '</div>';
+        echo '<div class="hlm-global-exclusions-actions">';
+        echo '<span class="hlm-global-exclusions-status" id="hlm-exclusion-status"></span>';
+        echo '<button type="button" class="hlm-btn hlm-btn--primary" id="hlm-save-global-exclusions">';
+        echo '<span class="dashicons dashicons-saved"></span> ' . esc_html__('Save Exclusions', 'hlm-smart-product-filters');
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+
+        // Body: two columns
+        echo '<div class="hlm-global-exclusions-body">';
+
+        // Left: custom searchable dropdown
+        echo '<div class="hlm-global-exclusions-picker">';
+        echo '<label class="hlm-filter-field-label">' . esc_html__('Add pages to exclude', 'hlm-smart-product-filters') . '</label>';
+        echo '<div class="hlm-exclusion-dropdown" id="hlm-exclusion-dropdown">';
+        echo '<div class="hlm-exclusion-trigger" id="hlm-exclusion-trigger">';
+        echo '<input type="text" class="hlm-exclusion-search" id="hlm-exclusion-search" placeholder="' . esc_attr__('Search categories, tags, or pages...', 'hlm-smart-product-filters') . '" autocomplete="off">';
+        echo '<span class="hlm-exclusion-trigger-arrow dashicons dashicons-arrow-down-alt2"></span>';
+        echo '</div>';
+        echo '<div class="hlm-exclusion-panel" id="hlm-exclusion-panel"></div>';
+        echo '</div>';
+        echo '</div>';
+
+        // Right: Chips display
+        echo '<div class="hlm-global-exclusions-chips">';
+        echo '<label class="hlm-filter-field-label">' . esc_html__('Excluded pages', 'hlm-smart-product-filters') . '</label>';
+        echo '<div class="hlm-exclusion-chip-list" id="hlm-exclusion-chip-list"></div>';
+        echo '<p class="hlm-exclusion-empty-msg" id="hlm-exclusion-empty-msg">'
+            . esc_html__('No pages excluded. Filters will show everywhere.', 'hlm-smart-product-filters') . '</p>';
+        echo '</div>';
+
+        echo '</div>'; // .hlm-global-exclusions-body
+        echo '</div>'; // .hlm-global-exclusions
     }
 
     private function render_template_selector(): void
