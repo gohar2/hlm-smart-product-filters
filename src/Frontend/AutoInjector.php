@@ -55,18 +55,14 @@ final class AutoInjector
             return true;
         }
 
-        $queried = get_queried_object();
-        if ($queried && isset($queried->term_id, $queried->taxonomy)) {
-            if ($queried->taxonomy === 'product_cat' && !empty($exclusions['categories']) && is_array($exclusions['categories'])) {
-                if (in_array((int) $queried->term_id, array_map('intval', $exclusions['categories']), true)) {
-                    return true;
-                }
-            }
-            if ($queried->taxonomy === 'product_tag' && !empty($exclusions['tags']) && is_array($exclusions['tags'])) {
-                if (in_array((int) $queried->term_id, array_map('intval', $exclusions['tags']), true)) {
-                    return true;
-                }
-            }
+        if (!empty($exclusions['categories']) && is_array($exclusions['categories'])
+            && is_product_category($exclusions['categories'])) {
+            return true;
+        }
+
+        if (!empty($exclusions['tags']) && is_array($exclusions['tags'])
+            && is_product_tag($exclusions['tags'])) {
+            return true;
         }
 
         return false;

@@ -37,7 +37,7 @@ final class Shortcode
             'context' => $this->current_context(),
         ];
 
-        if ($this->is_globally_excluded($request['context'])) {
+        if ($this->is_globally_excluded()) {
             return '';
         }
 
@@ -59,7 +59,7 @@ final class Shortcode
             'context' => $this->current_context(),
         ];
 
-        if ($this->is_globally_excluded($request['context'])) {
+        if ($this->is_globally_excluded()) {
             return '';
         }
 
@@ -303,7 +303,7 @@ final class Shortcode
         return $source;
     }
 
-    private function is_globally_excluded(array $context): bool
+    private function is_globally_excluded(): bool
     {
         $config = $this->config->get();
         $exclusions = $config['global']['global_exclusions'] ?? [];
@@ -312,18 +312,14 @@ final class Shortcode
             return true;
         }
 
-        $category_id = (int) ($context['category_id'] ?? 0);
-        if ($category_id > 0 && !empty($exclusions['categories']) && is_array($exclusions['categories'])) {
-            if (in_array($category_id, array_map('intval', $exclusions['categories']), true)) {
-                return true;
-            }
+        if (!empty($exclusions['categories']) && is_array($exclusions['categories'])
+            && function_exists('is_product_category') && is_product_category($exclusions['categories'])) {
+            return true;
         }
 
-        $tag_id = (int) ($context['tag_id'] ?? 0);
-        if ($tag_id > 0 && !empty($exclusions['tags']) && is_array($exclusions['tags'])) {
-            if (in_array($tag_id, array_map('intval', $exclusions['tags']), true)) {
-                return true;
-            }
+        if (!empty($exclusions['tags']) && is_array($exclusions['tags'])
+            && function_exists('is_product_tag') && is_product_tag($exclusions['tags'])) {
+            return true;
         }
 
         return false;
