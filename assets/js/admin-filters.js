@@ -1145,9 +1145,10 @@
       syncChips();
 
       // AJAX save
+      var saveBtnLabel = $saveBtn.html();
       $saveBtn.on('click', function () {
         var data = parseSelections();
-        $saveBtn.prop('disabled', true);
+        $saveBtn.prop('disabled', true).html('<span class="hlm-spinner"></span> Saving...');
         $status.removeClass('is-success is-error').text('');
 
         $.post(HLMFiltersAdmin.ajaxUrl, {
@@ -1158,18 +1159,22 @@
           shop:       data.shop ? 1 : 0
         }).done(function (response) {
           if (response && response.success) {
+            $saveBtn.html('<span class="dashicons dashicons-yes-alt"></span> Saved!');
             $status.addClass('is-success').text(response.data.message || 'Saved!');
           } else {
             var msg = (response && response.data && response.data.message) || 'Save failed.';
             $status.addClass('is-error').text(msg);
+            $saveBtn.html(saveBtnLabel);
           }
         }).fail(function () {
           $status.addClass('is-error').text('Network error. Please try again.');
+          $saveBtn.html(saveBtnLabel);
         }).always(function () {
           $saveBtn.prop('disabled', false);
           setTimeout(function () {
+            $saveBtn.html(saveBtnLabel);
             $status.fadeOut(300, function () { $status.text('').css('display', ''); });
-          }, 4000);
+          }, 2000);
         });
       });
     })();
